@@ -1,0 +1,63 @@
+$background-color: #322f3d;
+$outline-color: #4b5d67;
+$font-color: wheat;
+
+.App {
+  min-height: 100vh;
+
+  padding: 1em;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+
+  font-size: 16px;
+  background-color: $background-color;
+  color: $font-color;
+
+  label {
+    margin-bottom: 1em;
+    font-weight: 500;
+    font-size: 1.2em;
+  }
+
+  &-inputs {
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+
+    & > textarea {
+      font-size: 1em;
+      padding: 5px;
+      border-width: 3px;
+      border-color: $outline-color;
+      background-color: darken($background-color, 10);
+      color: $font-color;
+      border-style: solid;
+      margin-bottom: 1em;
+
+      &:focus {
+        outline: none;
+      }
+    }
+  }
+
+  &-output {
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+
+    & > pre {
+      white-space: pre-wrap;
+    }
+
+    &__error {
+      color: red;
+    }
+  }
+}
