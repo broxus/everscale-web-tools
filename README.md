@@ -1,20 +1,53 @@
-# BOC-visualizer
+## BOC-visualizer
 
-## Available Scripts
+### Requirements
 
-In the project directory, you can run:
+- Rust 1.50+ with installed target `wasm32-unknown-unknown`
+- wasm-pack
+- binaryen 99+ (for `wasm-opt`)
+- Node.js 14+
 
-### `npm start`
+### How to build
 
-Runs the app in the development mode.\
-Open [http://localhost:55555](http://localhost:55555) to view it in the browser.
+```bash
+git clone https://github.com/Rexagon/boc-visualizer.git
+cd boc-visualizer
+npm install
+npm run build
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+# Or you can run this. It runs the app in the development mode.
+# Open http://localhost:55555 to view it in the browser.
+npm run start
+```
 
-### `npm run build`
+### Custom ABI syntax
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bnf
+<abi> ::= <space>* (<abi_plain> | <abi_function>) <space>*
 
-The build is minified and the filenames include the hashes.
+<abi_plain> ::= <type> (<delim> <type>)*
+<abi_function> ::= 
+    <function_name> <space>* 
+    <function_params> <space>*  ; inputs
+    <function_params> <space>*  ; outputs
+    <function_abi>
+
+<function_name> ::= <function_name_start> (<function_name_start> | [0-9])*
+<function_name_start> ::= [a-z] | [A-Z] | "_"
+<function_params> ::= "(" <space>* (<type> (<delim> <type>)*)? <space>* ")" 
+<function_abi> ::= "v1" | "v2"
+
+<type> ::= <type_not_array> | <type_not_array> "[]"
+<type_not_array> ::= <type_simple> | <type_map> | <type_tuple>
+<type_tuple> ::= "(" <space>* <type> (<delim> <type>)* <space>* ")"
+<type_map> ::= "map" <space>* <type_map_params>
+<type_map_params> ::= "(" <space>* <type_simple> <delim> <type> <space>* ")"
+<type_simple> ::= "bool" | "address" | "bytes" | "cell" | <uint> | <int>
+
+<uint> ::= "uint" <bits>? | "u" <bits>
+<int> ::= "int" <bits>? | "i" <bits>
+<bits> ::= [1-9] | [1-9] [0-9] | "1" [0-9] [0-9] | "2" [0-4] [0-9] | "25" [0-6]
+
+<delim> ::= <space>* "," <space>*
+<space> ::= " " | "\t" | "\n"
+```
