@@ -1,17 +1,104 @@
 import React from 'react';
-import './App.scss';
+import classNames from 'classnames';
+
 import init, * as core from "../core/pkg";
 
-export type AppProps = {};
+import './App.scss';
 
-export type AppState = {
+declare const ObjectExt: {
+    keys<T extends {}>(object: T): (keyof T)[]
+}
+// @ts-ignore
+window.ObjectExt = {keys: Object.keys};
+
+export enum Workspace {
+    Visualizer,
+    Constructor,
+}
+
+const WORKSPACES = {
+    [Workspace.Visualizer]: "Visualizer",
+    [Workspace.Constructor]: "Constructor",
+}
+
+type WorkspaceSelectorProps = {
+    workspace: Workspace,
+    onChange: (workspace: Workspace) => void,
+}
+
+class WorkspaceSelector extends React.Component<WorkspaceSelectorProps, {}> {
+    constructor(props: WorkspaceSelectorProps) {
+        super(props);
+    }
+
+    render() {
+        const {workspace: currentWorkspace, onChange} = this.props;
+
+        const select = (workspace: Workspace) => () => onChange(workspace);
+
+        return (
+            <div className="App__workspace-selector noselect">
+                {ObjectExt.keys(WORKSPACES).map((workspace) => (
+                    <div key={workspace} className={classNames({
+                        "App__workspace-selector__item": true,
+                        "active": workspace == currentWorkspace,
+                    })}
+                         onClick={select(workspace)}>
+                        {WORKSPACES[workspace]}
+                    </div>
+                ))}
+            </div>
+        );
+    }
+}
+
+type ConstructorState = {
+    abiInput: string,
+};
+
+class Constructor extends React.Component<{}, ConstructorState> {
+    constructor(props: {}) {
+        super(props);
+
+        this.state = {
+            abiInput: '',
+        };
+    }
+
+    onInputAbi = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const abiInput = event.target.value;
+        core.customAbiPrepare(abiInput);
+
+        this.setState({
+            abiInput,
+        });
+    }
+
+    render() {
+        const {abiInput} = this.state;
+
+        return (
+            <div className="App__constructor">
+                <label>Enter ABI</label>
+                <textarea
+                    className="w100"
+                    onChange={this.onInputAbi}
+                    value={abiInput}
+                    rows={5}
+                />
+            </div>
+        );
+    }
+}
+
+type VisualizerState = {
     input: string,
     decoded: string | null,
     error: string | null,
 };
 
-export default class App extends React.Component<AppProps, AppState> {
-    constructor(props: AppProps) {
+class Visualizer extends React.Component<{}, VisualizerState> {
+    constructor(props: {}) {
         super(props);
 
         this.state = {
@@ -43,20 +130,52 @@ export default class App extends React.Component<AppProps, AppState> {
     render() {
         const {input, decoded, error} = this.state;
 
+        return <div className="App__visualizer">
+            <label>Enter base64 encoded BOC:</label>
+            <textarea
+                className="w100"
+                onChange={this.onInput}
+                value={input}
+                rows={5}
+            />
+            <label>Output:</label>
+            {error == null
+                ? <pre>{decoded}</pre>
+                : <pre className="error">{error}</pre>}
+        </div>;
+    }
+}
+
+export type AppProps = {};
+
+type AppState = {
+    workspace: Workspace,
+}
+
+export default class App extends React.Component<AppProps, AppState> {
+    constructor(props: AppProps) {
+        super(props);
+
+        this.state = {
+            workspace: Workspace.Visualizer,
+        };
+    }
+
+    selectWorkspace = (workspace: Workspace) => {
+        this.setState(state => ({
+            ...state,
+            workspace
+        }));
+    }
+
+    render() {
+        const {workspace} = this.state;
+
         return (
             <div className="App">
-                <div className="App-inputs">
-                    <label>Enter base64 encoded BOC:</label>
-                    <textarea
-                        onChange={this.onInput}
-                        value={input}
-                        rows={5}
-                    />
-                </div>
-                <div className="App-output">
-                    <label>Output:</label>
-                    {error == null ? <pre>{decoded}</pre> : <pre className="App-output__error">{error}</pre>}
-                </div>
+                <WorkspaceSelector workspace={workspace} onChange={this.selectWorkspace}/>
+                {workspace == Workspace.Visualizer && <Visualizer/>}
+                {workspace == Workspace.Constructor && <Constructor/>}
             </div>
         );
     }

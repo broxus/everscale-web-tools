@@ -1,5 +1,7 @@
 $background-color: #322f3d;
 $outline-color: #4b5d67;
+$button-color: #59405c;
+$button-active-color: #87556f;
 $font-color: wheat;
 
 .App {
@@ -22,42 +24,71 @@ $font-color: wheat;
     font-size: 1.2em;
   }
 
-  &-inputs {
+  textarea {
+    font-size: 1em;
+    padding: 5px;
+    border-width: 3px;
+    border-color: $outline-color;
+    background-color: darken($background-color, 10);
+    color: $font-color;
+    border-style: solid;
+    margin-bottom: 1em;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  pre {
+    white-space: pre-wrap;
+
+    &.error {
+      color: red;
+    }
+  }
+
+  &__workspace-selector {
     width: 100%;
 
     display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
+    flex-direction: row;
+    justify-content: center;
 
-    & > textarea {
-      font-size: 1em;
-      padding: 5px;
-      border-width: 3px;
-      border-color: $outline-color;
-      background-color: darken($background-color, 10);
-      color: $font-color;
-      border-style: solid;
-      margin-bottom: 1em;
+    &__item {
+      padding: 0.5em 1em;
 
-      &:focus {
-        outline: none;
+      background-color: $button-color;
+
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 1.2em;
+
+      &.active {
+        background-color: $button-active-color;
+        cursor: default;
+      }
+
+      &:not(:last-child) {
+        margin-right: 1em;
       }
     }
   }
 
-  &-output {
+  &__constructor {
     width: 100%;
 
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     justify-content: flex-start;
+  }
 
-    & > pre {
-      white-space: pre-wrap;
-    }
+  &__visualizer {
+    width: 100%;
 
-    &__error {
-      color: red;
-    }
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
   }
 }

@@ -1,3 +1,4 @@
+mod custom_abi;
 mod utils;
 
 use wasm_bindgen::prelude::*;
@@ -10,7 +11,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
+    pub fn log(s: &str);
 }
 
 #[wasm_bindgen(start)]
@@ -30,4 +31,10 @@ pub fn decode(boc: &str) -> Result<String, JsValue> {
     }
 
     Ok(result)
+}
+
+#[wasm_bindgen(js_name = "customAbiPrepare")]
+pub fn custom_abi_prepare(input: &str) {
+    let result = custom_abi::parse(input);
+    log(&format!("{:?}", result));
 }

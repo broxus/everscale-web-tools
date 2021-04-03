@@ -11,9 +11,11 @@ crate-type = ["cdylib"]
 wasm-opt = ["-Oz", "--enable-mutable-globals"]
 
 [dependencies]
+anyhow = "1.0"
 base64 = "0.13"
 js-sys = "0.3"
 syn = "=1.0.64"
+thiserror = "1.0"
 wasm-bindgen = { version = "=0.2.70", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"
 wee_alloc = "0.4"
