@@ -233,13 +233,6 @@ impl<'a> Context<'a> {
             position: self.len_consumed,
         }
     }
-
-    fn too_deep_nesting(&self, depth: usize) -> ParserError {
-        ParserError::TooDeepNesting {
-            depth,
-            position: self.len_consumed,
-        }
-    }
 }
 
 #[derive(thiserror::Error, Debug)]
