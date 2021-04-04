@@ -54,6 +54,8 @@ class WorkspaceSelector extends React.Component<WorkspaceSelectorProps, {}> {
 
 type ConstructorState = {
     abiInput: string,
+    decoded: string | null,
+    error: string | null,
 };
 
 class Constructor extends React.Component<{}, ConstructorState> {
@@ -62,20 +64,31 @@ class Constructor extends React.Component<{}, ConstructorState> {
 
         this.state = {
             abiInput: '',
+            decoded: null,
+            error: null,
         };
     }
 
     onInputAbi = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         const abiInput = event.target.value;
-        core.customAbiPrepare(abiInput);
 
-        this.setState({
-            abiInput,
-        });
+        try {
+            core.customAbiPrepare(abiInput);
+
+            this.setState({
+                abiInput,
+                error: null
+            });
+        } catch (e) {
+            this.setState({
+                abiInput,
+                error: e.toString()
+            })
+        }
     }
 
     render() {
-        const {abiInput} = this.state;
+        const {abiInput, decoded, error} = this.state;
 
         return (
             <div className="App__constructor">
@@ -86,6 +99,10 @@ class Constructor extends React.Component<{}, ConstructorState> {
                     value={abiInput}
                     rows={5}
                 />
+                <label>Output:</label>
+                {error == null
+                    ? <pre>{decoded}</pre>
+                    : <pre className="error">{error}</pre>}
             </div>
         );
     }

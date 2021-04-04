@@ -34,7 +34,8 @@ pub fn decode(boc: &str) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen(js_name = "customAbiPrepare")]
-pub fn custom_abi_prepare(input: &str) {
-    let result = custom_abi::parse(input);
+pub fn custom_abi_prepare(input: &str) -> Result<(), JsValue> {
+    let result = custom_abi::parse(input).handle_error()?;
     log(&format!("{:?}", result));
+    Ok(())
 }

@@ -6,6 +6,8 @@ use crate::utils::TrustMe;
 
 const MAX_TUPLE_LEVEL: usize = 16;
 
+const DEFAULT_ABI_VERSION: u8 = 2;
+
 pub fn parse<'a, I>(input: &'a str, mut iter: Peekable<I>) -> Result<Entity, ParserError>
 where
     I: Iterator<Item = lexer::Token> + 'a,
@@ -17,23 +19,28 @@ where
 
     whitespace0(&mut ctx, &mut iter);
 
-    match iter.peek().cloned() {
+    let entity = match iter.peek().cloned() {
         Some(lexer::Token { kind, len }) => match kind {
             lexer::TokenKind::Ident => {
                 let ident = ctx.text(len).to_owned();
 
                 if parse_ident(ctx.len_consumed, &ident)?.is_some() {
-                    types_list(&mut ctx, &mut iter).map(Entity::Plain)
+                    types_list(&mut ctx, &mut iter).map(Entity::Plain)?
                 } else {
                     skip_token(&mut ctx, &mut iter, len);
-                    function(&mut ctx, &mut iter, ident)
+                    function(&mut ctx, &mut iter, ident)?
                 }
             }
-            lexer::TokenKind::OpenParen => types_list(&mut ctx, &mut iter).map(Entity::Plain),
-            _ => Err(ctx.err_unexpected_token(len)),
+            lexer::TokenKind::OpenParen => types_list(&mut ctx, &mut iter).map(Entity::Plain)?,
+            _ => return Err(ctx.err_unexpected_token(len)),
         },
-        None => Ok(Entity::Empty),
-    }
+        None => return Ok(Entity::Empty),
+    };
+
+    whitespace0(&mut ctx, &mut iter);
+    eof(&mut ctx, &mut iter)?;
+
+    Ok(entity)
 }
 
 fn function<'a, I>(
@@ -52,11 +59,14 @@ where
     tag(ctx, iter, lexer::TokenKind::OpenParen)?;
     let outputs = types_list(ctx, iter)?;
     tag(ctx, iter, lexer::TokenKind::CloseParen)?;
+    whitespace0(ctx, iter);
+    let abi_version = abi_version(ctx, iter)?;
 
     Ok(Entity::Function {
         name,
         inputs,
         outputs,
+        abi_version,
     })
 }
 
@@ -151,7 +161,7 @@ fn parse_ident(position: usize, ident: &str) -> Result<Option<Ident>, ParserErro
     Ok(Some(match ident {
         "bool" => Ident::Bool,
         "bytes" => Ident::Bytes,
-        "address" => Ident::Address,
+        "addr" | "address" => Ident::Address,
         "cell" => Ident::Cell,
         _ => return parse_ident_integer(position, ident),
     }))
@@ -182,6 +192,43 @@ fn parse_ident_integer(position: usize, ident: &str) -> Result<Option<Ident>, Pa
         true => Ident::Int(size),
         false => Ident::Uint(size),
     }))
+}
+
+fn abi_version<'a, I>(ctx: &mut Context, iter: &mut Peekable<I>) -> Result<u8, ParserError>
+where
+    I: Iterator<Item = lexer::Token> + 'a,
+{
+    match iter.peek().cloned() {
+        Some(lexer::Token {
+            kind: lexer::TokenKind::Ident,
+            len,
+        }) => {
+            if let Some(version) = parse_abi_version(ctx.len_consumed, ctx.text(len))? {
+                skip_token(ctx, iter, len);
+                Ok(version)
+            } else {
+                Err(ctx.err_unexpected_token(len))
+            }
+        }
+        _ => Ok(DEFAULT_ABI_VERSION),
+    }
+}
+
+fn parse_abi_version(position: usize, ident: &str) -> Result<Option<u8>, ParserError> {
+    if ident.len() < 2 {
+        return Ok(None);
+    }
+
+    let num = match ident.split_at(1) {
+        ("v", num) => num,
+        _ => return Ok(None),
+    };
+
+    match u8::from_str(num) {
+        Ok(version @ 1..=2) => Ok(Some(version)),
+        Ok(version) => return Err(ParserError::InvalidAbiVersion { version, position }),
+        _ => return Ok(None),
+    }
 }
 
 fn skip_delim_or_until_paren<'a, I>(
@@ -233,6 +280,17 @@ where
     }) = iter.peek().cloned()
     {
         skip_token(ctx, iter, len);
+    }
+}
+
+fn eof<'a, I>(ctx: &mut Context, iter: &mut Peekable<I>) -> Result<(), ParserError>
+where
+    I: Iterator<Item = lexer::Token> + 'a,
+{
+    if let Some(lexer::Token { len, .. }) = iter.peek() {
+        Err(ctx.err_unexpected_token(*len))
+    } else {
+        Ok(())
     }
 }
 
@@ -300,4 +358,6 @@ pub enum ParserError {
     InvalidInteger { size: u16, position: usize },
     #[error("Too deep nesting `{}` at {}", .depth, .position)]
     TooDeepNesting { depth: usize, position: usize },
+    #[error("Invalid ABI version `{}` at {}", .version, .position)]
+    InvalidAbiVersion { version: u8, position: usize },
 }

@@ -23,6 +23,7 @@ pub enum Entity {
         name: String,
         inputs: Vec<Token>,
         outputs: Vec<Token>,
+        abi_version: u8,
     },
 }
 
