@@ -17,6 +17,7 @@ pub enum Token {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Entity {
+    Empty,
     Plain(Vec<Token>),
     Function {
         name: String,
@@ -25,7 +26,7 @@ pub enum Entity {
     },
 }
 
-pub fn parse(input: &str) -> Result<Vec<Token>> {
+pub fn parse(input: &str) -> Result<Entity> {
     let tokens = parser::parse(input, lexer::tokenize(input))?;
     Ok(tokens)
 }

@@ -1,12 +1,12 @@
 use std::iter::Peekable;
 use std::str::FromStr;
 
-use super::{lexer, Token};
+use super::{lexer, Entity, Token};
 use crate::utils::TrustMe;
 
 const MAX_TUPLE_LEVEL: usize = 16;
 
-pub fn parse<'a, I>(input: &'a str, mut iter: Peekable<I>) -> Result<Vec<Token>, ParserError>
+pub fn parse<'a, I>(input: &'a str, mut iter: Peekable<I>) -> Result<Entity, ParserError>
 where
     I: Iterator<Item = lexer::Token> + 'a,
 {
@@ -17,14 +17,56 @@ where
 
     whitespace0(&mut ctx, &mut iter);
 
-    tokens_list(&mut ctx, &mut iter)
+    match iter.peek().cloned() {
+        Some(lexer::Token { kind, len }) => match kind {
+            lexer::TokenKind::Ident => {
+                let ident = ctx.text(len).to_owned();
+
+                if parse_ident(ctx.len_consumed, &ident)?.is_some() {
+                    types_list(&mut ctx, &mut iter).map(Entity::Plain)
+                } else {
+                    skip_token(&mut ctx, &mut iter, len);
+                    function(&mut ctx, &mut iter, ident)
+                }
+            }
+            lexer::TokenKind::OpenParen => types_list(&mut ctx, &mut iter).map(Entity::Plain),
+            _ => Err(ctx.err_unexpected_token(len)),
+        },
+        None => Ok(Entity::Empty),
+    }
 }
 
-fn tokens_list<'a, I>(ctx: &mut Context, iter: &mut Peekable<I>) -> Result<Vec<Token>, ParserError>
+fn function<'a, I>(
+    ctx: &mut Context,
+    iter: &mut Peekable<I>,
+    name: String,
+) -> Result<Entity, ParserError>
+where
+    I: Iterator<Item = lexer::Token> + 'a,
+{
+    whitespace0(ctx, iter);
+    tag(ctx, iter, lexer::TokenKind::OpenParen)?;
+    let inputs = types_list(ctx, iter)?;
+    tag(ctx, iter, lexer::TokenKind::CloseParen)?;
+    whitespace0(ctx, iter);
+    tag(ctx, iter, lexer::TokenKind::OpenParen)?;
+    let outputs = types_list(ctx, iter)?;
+    tag(ctx, iter, lexer::TokenKind::CloseParen)?;
+
+    Ok(Entity::Function {
+        name,
+        inputs,
+        outputs,
+    })
+}
+
+fn types_list<'a, I>(ctx: &mut Context, iter: &mut Peekable<I>) -> Result<Vec<Token>, ParserError>
 where
     I: Iterator<Item = lexer::Token> + 'a,
 {
     let mut tokens: Vec<Vec<Token>> = vec![Vec::new()];
+
+    whitespace0(ctx, iter);
 
     loop {
         match iter.peek().cloned() {
@@ -43,32 +85,28 @@ where
                             return Err(ParserError::TooDeepNesting {
                                 depth,
                                 position: ctx.len_consumed,
-                            })
+                            });
                         }
                     }
-                    ctx.len_consumed += len;
-                    let _ = iter.next();
 
+                    skip_token(ctx, iter, len);
                     whitespace0(ctx, iter);
                 }
                 lexer::TokenKind::CloseParen => {
-                    match tokens.pop() {
-                        Some(tuple) if !tokens.is_empty() && !tuple.is_empty() => {
-                            match tokens.last_mut() {
-                                Some(tokens) => tokens.push(Token::Tuple(tuple)),
-                                None => tokens.push(vec![Token::Tuple(tuple)]),
-                            }
-                        }
-                        _ => {
-                            return {
-                                crate::log("Close paren");
-                                Err(ctx.err_unexpected_token(len))
-                            }
-                        }
+                    if tokens.len() <= 1 {
+                        break;
                     }
-                    ctx.len_consumed += len;
-                    let _ = iter.next();
 
+                    match tokens.pop() {
+                        Some(tuple) if !tuple.is_empty() => match tokens.last_mut() {
+                            Some(tokens) => tokens.push(Token::Tuple(tuple)),
+                            None => tokens.push(vec![Token::Tuple(tuple)]),
+                        },
+                        Some(_) => return Err(ctx.err_unexpected_token(len)),
+                        _ => unreachable!(),
+                    }
+
+                    skip_token(ctx, iter, len);
                     skip_delim_or_until_paren(ctx, iter)?;
                 }
                 lexer::TokenKind::Whitespace => {
@@ -91,7 +129,7 @@ fn ident<'a, I>(ctx: &'a mut Context, iter: &mut Peekable<I>) -> Result<Token, P
 where
     I: Iterator<Item = lexer::Token> + 'a,
 {
-    match iter.next() {
+    match iter.peek().cloned() {
         Some(lexer::Token {
             kind: lexer::TokenKind::Ident,
             len,
@@ -101,17 +139,12 @@ where
                 None => return Err(ctx.err_unexpected_token(len)),
             };
 
-            ctx.len_consumed += len;
+            skip_token(ctx, iter, len);
             Ok(token)
         }
         Some(lexer::Token { len, .. }) => Err(ctx.err_unexpected_token(len)),
         None => Err(ctx.err_eof()),
     }
-}
-
-enum FirstIdent<'a> {
-    Ident(Ident),
-    FunctionName(&'a str),
 }
 
 fn parse_ident(position: usize, ident: &str) -> Result<Option<Ident>, ParserError> {
@@ -160,19 +193,34 @@ where
 {
     whitespace0(ctx, iter);
 
-    if let Some(lexer::Token { kind, len }) = iter.peek() {
+    if let Some(lexer::Token { kind, len }) = iter.peek().cloned() {
         match kind {
-            lexer::TokenKind::Comma => {
-                ctx.len_consumed += len;
-                let _ = iter.next();
-            }
+            lexer::TokenKind::Comma => skip_token(ctx, iter, len),
             lexer::TokenKind::CloseParen => return Ok(()),
-            _ => return Err(ctx.err_unexpected_token(*len)),
+            _ => return Err(ctx.err_unexpected_token(len)),
         }
     }
 
     whitespace0(ctx, iter);
     Ok(())
+}
+
+fn tag<'a, I>(
+    ctx: &mut Context,
+    iter: &mut Peekable<I>,
+    kind: lexer::TokenKind,
+) -> Result<(), ParserError>
+where
+    I: Iterator<Item = lexer::Token> + 'a,
+{
+    match iter.peek().cloned() {
+        Some(token) if token.kind == kind => {
+            skip_token(ctx, iter, token.len);
+            Ok(())
+        }
+        Some(lexer::Token { len, .. }) => Err(ctx.err_unexpected_token(len)),
+        None => Err(ctx.err_eof()),
+    }
 }
 
 fn whitespace0<'a, I>(ctx: &mut Context, iter: &mut Peekable<I>)
@@ -182,10 +230,9 @@ where
     while let Some(lexer::Token {
         kind: lexer::TokenKind::Whitespace,
         len,
-    }) = iter.peek()
+    }) = iter.peek().cloned()
     {
-        ctx.len_consumed += len;
-        let _ = iter.next();
+        skip_token(ctx, iter, len);
     }
 }
 
@@ -209,6 +256,14 @@ impl From<Ident> for Token {
             Ident::Cell => Token::Cell,
         }
     }
+}
+
+fn skip_token<'a, I>(ctx: &mut Context, iter: &mut Peekable<I>, len: usize)
+where
+    I: Iterator<Item = lexer::Token> + 'a,
+{
+    ctx.len_consumed += len;
+    let _ = iter.next();
 }
 
 struct Context<'a> {
