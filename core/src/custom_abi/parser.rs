@@ -25,13 +25,13 @@ where
                 let ident = ctx.text(len).to_owned();
 
                 if parse_ident(ctx.len_consumed, &ident)?.is_some() {
-                    types_list(&mut ctx, &mut iter).map(Entity::Plain)?
+                    types_list(&mut ctx, &mut iter).map(Entity::Cell)?
                 } else {
                     skip_token(&mut ctx, &mut iter, len);
                     function(&mut ctx, &mut iter, ident)?
                 }
             }
-            lexer::TokenKind::OpenParen => types_list(&mut ctx, &mut iter).map(Entity::Plain)?,
+            lexer::TokenKind::OpenParen => types_list(&mut ctx, &mut iter).map(Entity::Cell)?,
             _ => return Err(ctx.err_unexpected_token(len)),
         },
         None => return Ok(Entity::Empty),
@@ -179,7 +179,7 @@ fn parse_ident_integer(position: usize, ident: &str) -> Result<Option<Ident>, Pa
 
     let (signed, num) = match ident.split_at(1) {
         ("i", num) => (true, num.trim_start_matches("nt")),
-        ("u", num) => (true, num.trim_start_matches("int")),
+        ("u", num) => (false, num.trim_start_matches("int")),
         _ => return Ok(None),
     };
 

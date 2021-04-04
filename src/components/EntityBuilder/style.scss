@@ -1,0 +1,27 @@
+@import "../../styles/colors";
+
+.entity-builder {
+  width: 100%;
+
+  display: flex;
+  flex-direction: row;
+
+  &__inputs {
+    width: 50%;
+    padding: 0.5em;
+
+    display: flex;
+    flex-direction: column;
+
+    background-color: darken($background-color, 5);
+  }
+
+  &__output {
+    width: 50%;
+    padding: 1em;
+
+    &:first-child {
+      padding: 0;
+    }
+  }
+}

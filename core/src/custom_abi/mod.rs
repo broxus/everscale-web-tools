@@ -20,7 +20,7 @@ pub enum Token {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Entity {
     Empty,
-    Plain(Vec<Token>),
+    Cell(Vec<Token>),
     Function {
         name: String,
         inputs: Vec<Token>,
