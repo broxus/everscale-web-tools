@@ -3,12 +3,11 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const WasmPackPlugin = require('@wasm-tool/wasm-pack-plugin');
-const { WebpackPluginServe } = require('webpack-plugin-serve');
 
 const outputPath = path.resolve(__dirname, 'dist');
 
 module.exports = {
-  entry: ['webpack-plugin-serve/client', path.resolve(__dirname, 'src/index.tsx')],
+  entry: [path.resolve(__dirname, 'src/index.tsx')],
   module: {
     rules: [
       {
@@ -62,11 +61,6 @@ module.exports = {
     }),
     new CopyWebpackPlugin({
       patterns: [{ from: path.resolve(__dirname, 'core/pkg/index_bg.wasm') }]
-    }),
-    new WebpackPluginServe({
-      static: outputPath,
-      liveReload: true,
-      host: 'localhost'
     })
   ],
   output: {
