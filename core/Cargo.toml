@@ -20,6 +20,7 @@ wasm-bindgen = { version = "=0.2.70", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"
 wee_alloc = "0.4"
 
+ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
 
 [target."cfg(debug_assertions)".dependencies]

@@ -11,7 +11,9 @@ pub enum Token {
     Address,
     Bytes,
     Cell,
+    Gram,
     Array(Box<Token>),
+    Map(Box<Token>, Box<Token>),
     Tuple(Vec<Token>),
 }
 

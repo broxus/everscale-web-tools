@@ -83,7 +83,7 @@ where
             Some(lexer::Token { kind, len }) => match kind {
                 lexer::TokenKind::Ident => {
                     let tokens = tokens.last_mut().trust_me();
-                    let ident = ident(ctx, iter)?;
+                    let ident = single_type(ctx, iter)?;
                     tokens.push(ident);
 
                     skip_delim_or_until_paren(ctx, iter)?;
@@ -135,7 +135,7 @@ where
     }
 }
 
-fn ident<'a, I>(ctx: &'a mut Context, iter: &mut Peekable<I>) -> Result<Token, ParserError>
+fn single_type<'a, I>(ctx: &'a mut Context, iter: &mut Peekable<I>) -> Result<Token, ParserError>
 where
     I: Iterator<Item = lexer::Token> + 'a,
 {
@@ -150,7 +150,11 @@ where
             };
 
             skip_token(ctx, iter, len);
-            Ok(token)
+            Ok(if optional_brackets(ctx, iter)? {
+                Token::Array(Box::new(token))
+            } else {
+                token
+            })
         }
         Some(lexer::Token { len, .. }) => Err(ctx.err_unexpected_token(len)),
         None => Err(ctx.err_eof()),
@@ -163,6 +167,7 @@ fn parse_ident(position: usize, ident: &str) -> Result<Option<Ident>, ParserErro
         "bytes" => Ident::Bytes,
         "addr" | "address" => Ident::Address,
         "cell" => Ident::Cell,
+        "gram" => Ident::Gram,
         _ => return parse_ident_integer(position, ident),
     }))
 }
@@ -228,6 +233,25 @@ fn parse_abi_version(position: usize, ident: &str) -> Result<Option<u8>, ParserE
         Ok(version @ 1..=2) => Ok(Some(version)),
         Ok(version) => return Err(ParserError::InvalidAbiVersion { version, position }),
         _ => return Ok(None),
+    }
+}
+
+fn optional_brackets<'a, I>(ctx: &mut Context, iter: &mut Peekable<I>) -> Result<bool, ParserError>
+where
+    I: Iterator<Item = lexer::Token> + 'a,
+{
+    whitespace0(ctx, iter);
+    if let Some(lexer::Token {
+        kind: lexer::TokenKind::OpenBracket,
+        len,
+    }) = iter.peek().cloned()
+    {
+        skip_token(ctx, iter, len);
+        whitespace0(ctx, iter);
+        tag(ctx, iter, lexer::TokenKind::CloseBracket)?;
+        Ok(true)
+    } else {
+        Ok(false)
     }
 }
 
@@ -301,6 +325,7 @@ enum Ident {
     Address,
     Bytes,
     Cell,
+    Gram,
 }
 
 impl From<Ident> for Token {
@@ -312,6 +337,7 @@ impl From<Ident> for Token {
             Ident::Address => Token::Address,
             Ident::Bytes => Token::Bytes,
             Ident::Cell => Token::Cell,
+            Ident::Gram => Token::Gram,
         }
     }
 }

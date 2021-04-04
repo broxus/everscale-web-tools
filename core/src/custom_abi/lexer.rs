@@ -29,9 +29,11 @@ pub struct Token {
 pub enum TokenKind {
     Whitespace,
     Ident,
-    Comma,      // `,`
-    OpenParen,  // `(`
-    CloseParen, // `)`
+    Comma,        // `,`
+    OpenParen,    // `(`
+    CloseParen,   // `)`
+    OpenBracket,  // `[`
+    CloseBracket, // `]`
     Unknown,
 }
 
@@ -81,6 +83,8 @@ impl<'a> Cursor<'a> {
             ',' => TokenKind::Comma,
             '(' => TokenKind::OpenParen,
             ')' => TokenKind::CloseParen,
+            '[' => TokenKind::OpenBracket,
+            ']' => TokenKind::CloseBracket,
             _ => TokenKind::Unknown,
         };
 
