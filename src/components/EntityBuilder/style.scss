@@ -23,5 +23,10 @@
     &:first-child {
       padding: 0;
     }
+
+    .encoded-data {
+      word-break: break-all;
+      max-width: 30em;
+    }
   }
 }

@@ -13,9 +13,14 @@ wasm-opt = ["-Oz", "--enable-mutable-globals"]
 [dependencies]
 anyhow = "1.0"
 base64 = "0.13"
+ed25519-dalek = "1.0"
+hex = "0.4"
 js-sys = "0.3"
+num-bigint = "0.2"
+num-traits = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sha2 = "0.9"
 syn = "=1.0.64"
 thiserror = "1.0"
 wasm-bindgen = { version = "=0.2.70", features = ["serde-serialize"] }
@@ -24,6 +29,7 @@ wee_alloc = "0.4"
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
+ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
 
 [target."cfg(debug_assertions)".dependencies]
 console_error_panic_hook = "0.1"

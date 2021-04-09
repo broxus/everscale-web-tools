@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom';
 import { BrowserRouter as Router, Switch, Route, Redirect, useHistory, useLocation } from 'react-router-dom';
 
@@ -19,7 +19,7 @@ const WORKSPACES = [
     component: () => <VisualizerWorkspace />
   },
   {
-    name: 'Serialize',
+    name: 'Serializer',
     path: '/serializer',
     component: () => <SerializerWorkspace />
   }

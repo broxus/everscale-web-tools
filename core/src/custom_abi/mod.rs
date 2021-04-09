@@ -2,6 +2,7 @@ mod lexer;
 mod parser;
 
 use anyhow::Result;
+use sha2::Digest;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
@@ -32,4 +33,40 @@ pub enum Entity {
 pub fn parse(input: &str) -> Result<Entity> {
     let tokens = parser::parse(input, lexer::tokenize(input))?;
     Ok(tokens)
+}
+
+pub fn get_function_signature(
+    name: &str,
+    inputs: &[ton_abi::Param],
+    outputs: &[ton_abi::Param],
+    abi_version: u8,
+) -> String {
+    let input_types = inputs
+        .iter()
+        .map(|param| param.kind.type_signature())
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let output_types = outputs
+        .iter()
+        .map(|param| param.kind.type_signature())
+        .collect::<Vec<_>>()
+        .join(",");
+
+    format!(
+        "{}({})({})v{}",
+        name, input_types, output_types, abi_version
+    )
+}
+
+pub fn calc_function_id(signature: &str) -> u32 {
+    use sha2::{Digest, Sha256};
+
+    let mut hasher = Sha256::new();
+    hasher.update(&signature.as_bytes());
+    let signature_hash = hasher.finalize();
+
+    let mut bytes: [u8; 4] = [0; 4];
+    bytes.copy_from_slice(&signature_hash[..4]);
+    u32::from_be_bytes(bytes)
 }

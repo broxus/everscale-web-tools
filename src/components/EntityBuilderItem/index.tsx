@@ -5,7 +5,47 @@ import * as core from '../../../core/pkg';
 
 import './style.scss';
 
-type EntityBuilderData = undefined | boolean | string;
+type BoolDataType = 'bool';
+type StringDataType =
+  | 'int'
+  | 'uint'
+  | 'cell'
+  | 'address'
+  | 'bytes'
+  | 'fixedbytes'
+  | 'gram'
+  | 'time'
+  | 'expire'
+  | 'pubkey';
+type TupleDataType = 'tuple';
+type ArrayDataType = 'array' | 'fixedarray';
+
+export type EntityBuilderData =
+  | {
+      type: BoolDataType;
+      data: boolean;
+    }
+  | {
+      type: StringDataType;
+      data: string;
+    }
+  | {
+      type: TupleDataType;
+      data: EntityBuilderData[];
+    }
+  | {
+      type: ArrayDataType;
+      data: EntityBuilderData[];
+    };
+
+enum DataType {
+  Unknown,
+  Number,
+  Bool,
+  Cell,
+  Bytes,
+  Address
+}
 
 type EntityBuilderItemProps = {
   abi: core.AbiParam;
@@ -15,7 +55,7 @@ type EntityBuilderItemProps = {
 
 type EntityBuilderItemState = {
   innerData: EntityBuilderData[];
-  data: EntityBuilderData;
+  data?: EntityBuilderData;
 };
 
 export class EntityBuilderItem extends React.Component<EntityBuilderItemProps, EntityBuilderItemState> {

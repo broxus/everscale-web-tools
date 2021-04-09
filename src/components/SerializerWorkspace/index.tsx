@@ -85,7 +85,13 @@ export class SerializerWorkspace extends React.Component<{}, SerializerWorkspace
           value={abiInput}
           rows={5}
         />
-        {decodedAbi != null && <EntityBuilder abi={decodedAbi.data} />}
+        {decodedAbi != null && (
+          <EntityBuilder
+            abi={decodedAbi.data}
+            handler={decodedAbi.handler}
+            defaultState={decodedAbi.handler.makeDefaultState()}
+          />
+        )}
         {error != null && <pre className="error">{error}</pre>}
       </div>
     );
