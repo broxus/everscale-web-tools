@@ -1,58 +1,68 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
+import { BrowserRouter as Router, Switch, Route, Redirect, useHistory, useLocation } from 'react-router-dom';
 
 import 'reset-css';
 import './styles/main.scss';
 
 import init from '../core/pkg';
-import { Workspace } from './common';
+import './common';
 
-import { WorkspaceSelector } from './components/WorkspaceSelector';
+import { WorkspaceSelector, WorkspaceItem } from './components/WorkspaceSelector';
 import { VisualizerWorkspace } from './components/VisualizerWorkspace';
 import { SerializerWorkspace } from './components/SerializerWorkspace';
 
-export type AppProps = {};
+const WORKSPACES = [
+  {
+    name: 'Visualizer',
+    path: '/visualizer',
+    component: () => <VisualizerWorkspace />
+  },
+  {
+    name: 'Serialize',
+    path: '/serializer',
+    component: () => <SerializerWorkspace />
+  }
+];
 
-type AppState = {
-  workspace: Workspace;
+const App: React.FC = () => {
+  const history = useHistory();
+  const location = useLocation();
+
+  return (
+    <>
+      <WorkspaceSelector>
+        {WORKSPACES.map(workspace => (
+          <WorkspaceItem
+            active={location.pathname === workspace.path}
+            name={workspace.name}
+            onClick={() => history.push(workspace.path)}
+          />
+        ))}
+      </WorkspaceSelector>
+      <hr />
+      <Switch>
+        <Route exact path="/">
+          <Redirect to={WORKSPACES[0].path} />
+        </Route>
+        {WORKSPACES.map(workspace => (
+          <Route exact path={workspace.path}>
+            {workspace.component()}
+          </Route>
+        ))}
+      </Switch>
+    </>
+  );
 };
-
-export default class App extends React.Component<AppProps, AppState> {
-  constructor(props: AppProps) {
-    super(props);
-
-    this.state = {
-      workspace: Workspace.Visualizer
-    };
-  }
-
-  selectWorkspace = (workspace: Workspace) => {
-    this.setState(state => ({
-      ...state,
-      workspace
-    }));
-  };
-
-  render() {
-    const { workspace } = this.state;
-
-    return (
-      <>
-        <WorkspaceSelector workspace={workspace} onChange={this.selectWorkspace} />
-        <hr />
-        {workspace == Workspace.Visualizer && <VisualizerWorkspace />}
-        {workspace == Workspace.Constructor && <SerializerWorkspace />}
-      </>
-    );
-  }
-}
 
 (async () => {
   await init('index_bg.wasm');
 
   ReactDOM.render(
     <React.StrictMode>
-      <App />
+      <Router>
+        <App />
+      </Router>
     </React.StrictMode>,
     document.getElementById('root')
   );

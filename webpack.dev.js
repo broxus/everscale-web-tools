@@ -11,7 +11,8 @@ module.exports = merge(common, {
     new WebpackPluginServe({
       static: common.output.path,
       liveReload: true,
-      host: 'localhost'
+      host: 'localhost',
+      historyFallback: true
     })
   ]
 });
