@@ -1,4 +1,5 @@
 @import "../../styles/colors";
+@import "../../styles/media";
 
 .entity-builder {
   width: 100%;
@@ -24,9 +25,17 @@
       padding: 0;
     }
 
-    .encoded-data {
+    .encoded-data, .error {
       word-break: break-all;
       max-width: 30em;
+    }
+  }
+
+  @include media-down(md) {
+    flex-direction: column;
+
+    &__inputs, &__output {
+      width: 100%;
     }
   }
 }
