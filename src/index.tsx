@@ -34,6 +34,7 @@ const App: React.FC = () => {
       <WorkspaceSelector>
         {WORKSPACES.map(workspace => (
           <WorkspaceItem
+            key={workspace.name}
             active={location.pathname === workspace.path}
             name={workspace.name}
             onClick={() => history.push(workspace.path)}
@@ -46,7 +47,7 @@ const App: React.FC = () => {
           <Redirect to={WORKSPACES[0].path} />
         </Route>
         {WORKSPACES.map(workspace => (
-          <Route exact path={workspace.path}>
+          <Route key={workspace.name} exact path={workspace.path}>
             {workspace.component()}
           </Route>
         ))}

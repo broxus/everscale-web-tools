@@ -282,7 +282,10 @@ mod serde_helpers {
     {
         match NumberValue::<u64>::deserialize(deserializer)? {
             NumberValue::Number(number) => Ok(BigUint::from(number)),
-            NumberValue::String(string) => BigUint::from_str(&string).map_err(D::Error::custom),
+            NumberValue::String(string) if !string.is_empty() => {
+                BigUint::from_str(&string).map_err(D::Error::custom)
+            }
+            _ => Ok(Default::default()),
         }
     }
 
@@ -292,7 +295,10 @@ mod serde_helpers {
     {
         match NumberValue::<i64>::deserialize(deserializer)? {
             NumberValue::Number(number) => Ok(BigInt::from(number)),
-            NumberValue::String(string) => BigInt::from_str(&string).map_err(D::Error::custom),
+            NumberValue::String(string) if !string.is_empty() => {
+                BigInt::from_str(&string).map_err(D::Error::custom)
+            }
+            _ => Ok(Default::default()),
         }
     }
 }
