@@ -44,12 +44,12 @@ const makeBoolField = <K extends core.AbiValue['type']>(
   onChange: (newData: typeof value) => void
 ): React.ReactNode => (
   <label className="checkbox control-checkbox">
-    {value.toString()}
+    {value?.toString() || false}
     <input
       type="checkbox"
-      checked={value}
+      checked={value as any}
       onChange={() => {
-        onChange(!value);
+        onChange(!value as any);
       }}
     />
     <div className="control_indicator" />
@@ -61,17 +61,17 @@ const makeTupleField = <K extends core.AbiValue['type']>(
   value: AbiValueData<K>,
   onChange: (newData: typeof value) => void
 ): React.ReactNode => {
-  if (abi.kind !== 'tuple') {
+  if (abi.kind !== 'tuple' || value == null) {
     return null;
   }
   return abi.info.types.map((abi, i) => {
     return (
       <EntityBuilderItem
         key={i}
-        value={value[i]}
+        value={(value as any)[i]}
         abi={abi}
         onChange={newValue => {
-          value[i] = newValue;
+          (value as any)[i] = newValue;
           onChange(value);
         }}
       />
@@ -86,13 +86,21 @@ const HANDLERS: {
     onChange: (newData: typeof value) => void
   ) => React.ReactNode;
 } = {
+  //@ts-ignore
   uint: makeTextField,
+  //@ts-ignore
   int: makeTextField,
+  //@ts-ignore
   bool: makeBoolField,
+  //@ts-ignore
   tuple: makeTupleField,
+  //@ts-ignore
   cell: makeTextAreaField,
+  //@ts-ignore
   address: makeTextAreaField,
+  //@ts-ignore
   bytes: makeTextAreaField,
+  //@ts-ignore
   pubkey: makeTextAreaField
 };
 
@@ -117,6 +125,7 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
       if (handler == null) {
         return 'Unsupported';
       }
+      //@ts-ignore
       return handler(abi.type, value.data, data =>
         onChange?.({
           type: value.type,
