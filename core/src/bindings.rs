@@ -253,6 +253,7 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
             | (ton_abi::ParamType::FixedBytes(_), JsAbiValue::Bytes(bytes)) => {
                 ton_abi::TokenValue::Bytes(bytes)
             }
+            (ton_abi::ParamType::Cell, JsAbiValue::Cell(cell)) => ton_abi::TokenValue::Cell(cell),
             (ton_abi::ParamType::Token, JsAbiValue::Uint(value)) => match value.to_u128() {
                 Some(grams) => ton_abi::TokenValue::Token(ton_block::Grams(grams)),
                 None => return Err(AbiError::InvalidInteger.into()),
@@ -293,12 +294,16 @@ mod serde_helpers {
     use serde::de;
     use serde::de::Error;
     use ton_block::Deserializable;
+    use ton_types::SliceData;
 
     pub fn deserialize_cell<'de, D>(deserializer: D) -> Result<Cell, D::Error>
     where
         D: de::Deserializer<'de>,
     {
-        Cell::construct_from_base64(&String::deserialize(deserializer)?).map_err(D::Error::custom)
+        let encoded = String::deserialize(deserializer)?;
+        let bytes = base64::decode(&encoded).map_err(D::Error::custom)?;
+        ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(bytes))
+            .map_err(D::Error::custom)
     }
 
     pub fn deserialize_address<'de, D>(deserializer: D) -> Result<MsgAddressInt, D::Error>
