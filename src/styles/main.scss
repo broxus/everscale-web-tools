@@ -1,192 +1,20 @@
+@charset "utf-8";
+
 @import "./fonts";
-@import "./colors";
-@import "./media";
 @import "./constants";
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+$family-sans-serif: 'PT Root UI', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+sans-serif;
 
-html {
-  background-color: $background-color;
-}
+$navbar-item-active-color: black;
 
-body {
-  font-family: 'PT Root UI', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-  'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-  sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  display: flex;
-  justify-content: center;
-  flex-direction: row;
-  line-height: 1.56;
-}
-
-#root {
-  min-height: 100vh;
-  min-width: 70em;
-
-  padding: 1em;
-
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-
-  font-size: 16px;
-  background-color: $background-color;
-  color: $font-color;
-
-  @include media-down(xl) {
-    min-width: 100%;
-  }
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-  monospace;
-}
-
-hr {
-  width: 100%;
-  height: 0;
-  margin: 1em 0;
-
-  border: none;
-  border-bottom: $input-border-width solid $background-color-dark;
-}
+@import "~bulma/bulma";
 
 .noselect {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
-.w100 {
-  width: 100%;
-}
-
-$input-border-width: 3px;
-
-h1 {
-  margin-bottom: 1em;
-  font-weight: 500;
-  font-size: 1.2em;
-}
-
-textarea, input[type="text"] {
-  font-size: 1em;
-  padding: 5px;
-  border-width: $input-border-width;
-  border-color: $outline-color;
-  background-color: darken($background-color, 10);
-  color: $font-color;
-  border-style: solid;
-  margin-bottom: 1em;
-
-  &:focus {
-    outline: none;
-  }
-}
-
-.checkbox {
-  @extend .noselect;
-
-  $checkbox-size: calc((#{$input-border-width} + 5px) * 2 + 1em);
-
-  display: block;
-  position: relative;
-  height: $checkbox-size;
-  line-height: $checkbox-size;
-
-  padding-left: 2.5em;
-  margin-bottom: 1em;
-
-  cursor: pointer;
-
-  font-weight: 500;
-
-  input {
-    position: absolute;
-    z-index: -1;
-    opacity: 0;
-  }
-
-  &:hover input ~ .control_indicator,
-  input:focus ~ .control_indicator {
-    background: $background-color;
-  }
-
-  input:checked ~ .control_indicator {
-    background: $button-color;
-  }
-
-  &:hover input:checked ~ .control_indicator,
-  input:checked:focus ~ .control_indicator {
-    background: $button-active-color;
-  }
-
-  input:checked ~ .control_indicator:after {
-    display: block;
-  }
-
-  .control_indicator {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: $checkbox-size;
-    width: $checkbox-size;
-    background: $background-color-darker;
-    border: $input-border-width solid $outline-color;
-
-    &::after {
-      box-sizing: unset;
-      content: '';
-      position: absolute;
-      display: none;
-    }
-
-    &::after {
-      left: 0.51em;
-      top: 0.2em;
-      width: 0.24em;
-      height: 0.6em;
-      border: solid $font-color;
-      border-width: 0 0.3em 0.3em 0;
-      transform: rotate(45deg);
-    }
-  }
-}
-
-pre {
-  white-space: pre-wrap;
-
-  &.error {
-    color: red;
-  }
-}
-
-::-webkit-scrollbar {
-  width: 0.5em;
-  height: 0.5em;
-}
-
-::-webkit-scrollbar-thumb {
-  background: $outline-color;
-  border-radius: 0;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: darken($outline-color, 10);
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 0;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }

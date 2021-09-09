@@ -1,4 +1,3 @@
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
 impl<T, E> HandleError for Result<T, E>

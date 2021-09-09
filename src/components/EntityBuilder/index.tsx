@@ -42,7 +42,6 @@ export class EntityBuilder extends React.Component<EntityBuilderProps, EntityBui
   }
 
   componentDidUpdate(prevProps: Readonly<EntityBuilderProps>) {
-    console.log('Hello world');
     if (prevProps.abi != this.props.abi) {
       console.log(prevProps, this.props);
     }

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use anyhow::Result;
 use num_bigint::{BigInt, BigUint};
 use num_traits::cast::ToPrimitive;
-use serde::Deserialize;
-use ton_block::MsgAddressInt;
+use serde::{Deserialize, Serialize};
+use ton_block::{Deserializable, MsgAddressInt};
 use ton_types::Cell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -62,11 +62,11 @@ pub fn parse_abi(input: &str) -> Result<AbiEntityHandler, JsValue> {
                         });
 
                     Entity::Function(ton_abi::Function {
+                        abi_version: ton_abi::contract::ABI_VBERSION_2_1,
                         name: function.name,
                         header: Vec::new(),
                         inputs: function.inputs,
                         outputs: function.outputs,
-                        abi_version,
                         input_id,
                         output_id,
                     })
@@ -128,8 +128,67 @@ pub fn encode_abi_entry(
         .handle_error()
         .map(base64::encode)
 }
+//
+// #[wasm_bindgen(js_name = "encodeAbi")]
+// pub fn encode_abi(entiry: &AbiEntityHandler) -> Result<Option<String>, JsValue> {
+//     let function = match &entiry.inner {
+//         Entity::Function(function) => function,
+//         _ => return Ok(None),
+//     };
+//
+//     #[derive(Serialize)]
+//     struct SerdeFunction<'a> {
+//         pub name: &'a str,
+//         pub inputs: &'a [ton_abi::Param],
+//         pub outputs: &'a [ton_abi::Param],
+//         pub id: u32,
+//     }
+//
+//     #[derive(Serialize)]
+//     struct SerdeContract<'a> {
+//         #[serde(rename = "ABI version")]
+//         pub abi_version: u8,
+//         pub functions: Vec<SerdeFunction<'a>>,
+//     }
+//
+//     Ok(Some(
+//         serde_json::to_string(&SerdeContract {
+//             abi_version: 2,
+//             functions: vec![SerdeFunction {
+//                 name: &function.name,
+//                 inputs: &function.inputs,
+//                 outputs: &function.outputs,
+//                 id: function.get_function_id(),
+//             }],
+//         })
+//         .handle_error()?,
+//     ))
+// }
+//
+// #[wasm_bindgen(js_name = "encodeTokensObject")]
+// pub fn encode_tokens_object(
+//     entity: &AbiEntityHandler,
+//     values: AbiValueArray,
+// ) -> Result<Option<TokensObject>, JsValue> {
+//     let values = values.unchecked_into();
+//
+//     let params: Vec<ton_abi::Token> = match &entity.inner {
+//         Entity::Empty => return Ok(None),
+//         Entity::Cell(inputs) => parse_abi_values(inputs, values).handle_error()?,
+//         Entity::Function(function) => parse_abi_values(&function.inputs, values).handle_error()?,
+//     };
+//
+//     let tokens = make_tokens_object(&params)?;
+//     Ok(Some(tokens))
+// }
 
 fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_abi::Token>> {
+    let address = ton_block::MsgAddressInt::construct_from_base64(
+        "te6ccgEBAQEAJAAAQ4AEAU3UVdPEtc8TkI1Rr4Wy1/rYDbgtSqYLr+YvwfN281A=",
+    )
+    .unwrap();
+    log(&format!("{:?}", address));
+
     fn parse_token((param, value): (&ton_abi::Param, JsAbiValue)) -> Result<ton_abi::Token> {
         let value = parse_token_value((&param.kind, value))?;
         Ok(ton_abi::Token {
@@ -154,6 +213,12 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
                     size: *size,
                 })
             }
+            (ton_abi::ParamType::VarUint(size), JsAbiValue::VarUint(number)) => {
+                ton_abi::TokenValue::VarUint(*size, number)
+            }
+            (ton_abi::ParamType::VarInt(size), JsAbiValue::VarInt(number)) => {
+                ton_abi::TokenValue::VarInt(*size, number)
+            }
             (ton_abi::ParamType::Bool, JsAbiValue::Bool(value)) => ton_abi::TokenValue::Bool(value),
             (ton_abi::ParamType::Tuple(params), JsAbiValue::Tuple(values)) => {
                 if params.len() != values.len() {
@@ -175,7 +240,7 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
                     result.push(parse_token_value((param.as_ref(), value))?);
                 }
 
-                ton_abi::TokenValue::Array(result)
+                ton_abi::TokenValue::Array(*param.clone(), result)
             }
             (ton_abi::ParamType::Address, JsAbiValue::Address(address)) => {
                 let value = match address {
@@ -188,8 +253,8 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
             | (ton_abi::ParamType::FixedBytes(_), JsAbiValue::Bytes(bytes)) => {
                 ton_abi::TokenValue::Bytes(bytes)
             }
-            (ton_abi::ParamType::Gram, JsAbiValue::Uint(value)) => match value.to_u128() {
-                Some(grams) => ton_abi::TokenValue::Gram(ton_block::Grams(grams)),
+            (ton_abi::ParamType::Token, JsAbiValue::Uint(value)) => match value.to_u128() {
+                Some(grams) => ton_abi::TokenValue::Token(ton_block::Grams(grams)),
                 None => return Err(AbiError::InvalidInteger.into()),
             },
             (ton_abi::ParamType::Time, JsAbiValue::Uint(value)) => match value.to_u64() {
@@ -350,6 +415,8 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
     let (ty, data) = match param {
         ton_abi::ParamType::Uint(_) => ("uint", JsValue::from_str("0")),
         ton_abi::ParamType::Int(_) => ("int", JsValue::from_str("0")),
+        ton_abi::ParamType::VarUint(_) => ("varuint", JsValue::from_str("0")),
+        ton_abi::ParamType::VarInt(_) => ("varint", JsValue::from_str("0")),
         ton_abi::ParamType::Bool => ("bool", JsValue::from(false)),
         ton_abi::ParamType::Tuple(params) => (
             "tuple",
@@ -367,6 +434,7 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
                 .collect::<js_sys::Array>()
                 .unchecked_into(),
         ),
+        ton_abi::ParamType::Map(_, _) => ("map", ObjectBuilder::new().build()),
         ton_abi::ParamType::FixedArray(param, len) => (
             "array",
             std::iter::repeat_with(|| make_default_state(param.as_ref()))
@@ -381,14 +449,15 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
             JsValue::from(MsgAddressInt::default().to_string()),
         ),
         ton_abi::ParamType::Bytes => ("bytes", JsValue::from_str("")),
+        ton_abi::ParamType::String => ("string", JsValue::from_str("")),
         ton_abi::ParamType::FixedBytes(len) => {
             ("bytes", JsValue::from_str(&hex::encode(&vec![0; *len])))
         }
-        ton_abi::ParamType::Gram => ("uint", JsValue::from_str("0")),
+        ton_abi::ParamType::Token => ("uint", JsValue::from_str("0")),
         ton_abi::ParamType::Time => ("uint", JsValue::from_str("0")),
         ton_abi::ParamType::Expire => ("uint", JsValue::from(u32::MAX.to_string())),
         ton_abi::ParamType::PublicKey => ("pubkey", JsValue::null()),
-        _ => ("unknown", JsValue::undefined()),
+        ton_abi::ParamType::Optional(_) => ("optional", JsValue::null()),
     };
 
     ObjectBuilder::new()
@@ -413,10 +482,13 @@ impl From<&'_ custom_abi::Token> for ton_abi::ParamType {
             custom_abi::Token::Bool => ton_abi::ParamType::Bool,
             custom_abi::Token::Int(size) => ton_abi::ParamType::Int(*size as usize),
             custom_abi::Token::Uint(size) => ton_abi::ParamType::Uint(*size as usize),
+            custom_abi::Token::VarInt(size) => ton_abi::ParamType::VarInt(*size as usize),
+            custom_abi::Token::VarUint(size) => ton_abi::ParamType::VarUint(*size as usize),
             custom_abi::Token::Address => ton_abi::ParamType::Address,
             custom_abi::Token::Bytes => ton_abi::ParamType::Bytes,
+            custom_abi::Token::String => ton_abi::ParamType::String,
             custom_abi::Token::Cell => ton_abi::ParamType::Cell,
-            custom_abi::Token::Gram => ton_abi::ParamType::Gram,
+            custom_abi::Token::Token => ton_abi::ParamType::Token,
             custom_abi::Token::Array(ty) => ton_abi::ParamType::Array(Box::new(ty.as_ref().into())),
             custom_abi::Token::Map(key, value) => ton_abi::ParamType::Map(
                 Box::new(key.as_ref().into()),
@@ -466,11 +538,11 @@ impl From<custom_abi::Entity> for Entity {
                 ));
 
                 Entity::Function(ton_abi::Function {
+                    abi_version: abi_version.into(),
                     name,
                     header: Vec::new(),
                     inputs,
                     outputs,
-                    abi_version,
                     input_id: id & 0x7FFFFFFF,
                     output_id: id | 0x80000000,
                 })
@@ -486,6 +558,10 @@ enum JsAbiValue {
     Uint(BigUint),
     #[serde(deserialize_with = "serde_helpers::deserialize_int")]
     Int(BigInt),
+    #[serde(deserialize_with = "serde_helpers::deserialize_uint")]
+    VarUint(BigUint),
+    #[serde(deserialize_with = "serde_helpers::deserialize_int")]
+    VarInt(BigInt),
     Bool(bool),
     Tuple(Vec<JsAbiValue>),
     Array(Vec<JsAbiValue>),
@@ -509,12 +585,15 @@ export type AbiValueWrapper<T extends string, D> = { type: T, data: D };
 export type AbiValue =
   | AbiValueWrapper<'uint', string>
   | AbiValueWrapper<'int', string>
+  | AbiValueWrapper<'varuint', string>
+  | AbiValueWrapper<'varint', string>
   | AbiValueWrapper<'bool', boolean>
   | AbiValueWrapper<'tuple', AbiValue[]>
   | AbiValueWrapper<'array', AbiValue[]>
   | AbiValueWrapper<'cell', string>
   | AbiValueWrapper<'address', string>
   | AbiValueWrapper<'bytes', string>
+  | AbiValueWrapper<'string', string>
   | AbiValueWrapper<'pubkey', string | undefined>;
 
 export type EnumWrapper<K extends string, I> = { kind: K, info: I };
@@ -541,6 +620,8 @@ export type AbiParamType =
   | EnumWrapper<'unknown', null>
   | EnumWrapper<'uint', { size: number }>
   | EnumWrapper<'int', { size: number }>
+  | EnumWrapper<'varuint', { size: number }>
+  | EnumWrapper<'varint', { size: number }>
   | EnumWrapper<'bool', null>
   | EnumWrapper<'tuple', { types: Array<AbiParam> }>
   | EnumWrapper<'array', { type: AbiParamType }>
@@ -549,6 +630,7 @@ export type AbiParamType =
   | EnumWrapper<'map', { key: AbiParamType, value: AbiParamType }>
   | EnumWrapper<'address', null>
   | EnumWrapper<'bytes', null>
+  | EnumWrapper<'string', null>
   | EnumWrapper<'fixedbytes', { size: number }>
   | EnumWrapper<'gram', null>
   | EnumWrapper<'time', null>
@@ -604,7 +686,7 @@ impl From<&'_ Entity> for JsValue {
                             .map(serialize_param)
                             .collect::<js_sys::Array>(),
                     )
-                    .set("abiVersion", function.abi_version)
+                    .set("abiVersion", function.abi_version.major)
                     .set("inputId", function.input_id)
                     .set("outputId", function.output_id)
                     .build(),
@@ -627,13 +709,20 @@ fn serialize_param(param: &ton_abi::Param) -> JsValue {
 
 fn serialize_param_type(param: &ton_abi::ParamType) -> JsValue {
     let (kind, info) = match param {
-        ton_abi::ParamType::Unknown => ("unknown", JsValue::null()),
         ton_abi::ParamType::Uint(size) => (
             "uint",
             ObjectBuilder::new().set("size", *size as u32).build(),
         ),
         ton_abi::ParamType::Int(size) => (
             "int",
+            ObjectBuilder::new().set("size", *size as u32).build(),
+        ),
+        ton_abi::ParamType::VarUint(size) => (
+            "varuint",
+            ObjectBuilder::new().set("size", *size as u32).build(),
+        ),
+        ton_abi::ParamType::VarInt(size) => (
+            "varint",
             ObjectBuilder::new().set("size", *size as u32).build(),
         ),
         ton_abi::ParamType::Bool => ("bool", JsValue::null()),
@@ -669,20 +758,113 @@ fn serialize_param_type(param: &ton_abi::ParamType) -> JsValue {
         ),
         ton_abi::ParamType::Address => ("address", JsValue::null()),
         ton_abi::ParamType::Bytes => ("bytes", JsValue::null()),
+        ton_abi::ParamType::String => ("string", JsValue::null()),
         ton_abi::ParamType::FixedBytes(size) => (
             "fixedbytes",
             ObjectBuilder::new().set("size", *size as u32).build(),
         ),
-        ton_abi::ParamType::Gram => ("gram", JsValue::null()),
+        ton_abi::ParamType::Token => ("gram", JsValue::null()),
         ton_abi::ParamType::Time => ("time", JsValue::null()),
         ton_abi::ParamType::Expire => ("expire", JsValue::null()),
         ton_abi::ParamType::PublicKey => ("publicKey", JsValue::null()),
+        ton_abi::ParamType::Optional(param) => ("optional", serialize_param_type(param)),
     };
 
     ObjectBuilder::new()
         .set("kind", kind)
         .set("info", info)
         .build()
+}
+
+fn make_token_value(value: &ton_abi::TokenValue) -> Result<JsValue, JsValue> {
+    Ok(match value {
+        ton_abi::TokenValue::Uint(value) => JsValue::from(value.number.to_string()),
+        ton_abi::TokenValue::Int(value) => JsValue::from(value.number.to_string()),
+        ton_abi::TokenValue::VarUint(_, value) => JsValue::from(value.to_string()),
+        ton_abi::TokenValue::VarInt(_, value) => JsValue::from(value.to_string()),
+        ton_abi::TokenValue::Bool(value) => JsValue::from(*value),
+        ton_abi::TokenValue::Tuple(values) => {
+            let tuple = js_sys::Object::new();
+            for token in values {
+                js_sys::Reflect::set(
+                    &tuple,
+                    &JsValue::from_str(&token.name),
+                    &make_token_value(&token.value)?,
+                )?;
+            }
+            tuple.unchecked_into()
+        }
+        ton_abi::TokenValue::Array(_, values) | ton_abi::TokenValue::FixedArray(_, values) => {
+            values
+                .iter()
+                .map(make_token_value)
+                .collect::<Result<js_sys::Array, _>>()
+                .map(JsCast::unchecked_into)?
+        }
+        ton_abi::TokenValue::Cell(value) => {
+            let data = ton_types::serialize_toc(value).handle_error()?;
+            JsValue::from(base64::encode(&data))
+        }
+        ton_abi::TokenValue::Map(_, _, values) => values
+            .iter()
+            .map(|(key, value)| {
+                Result::<JsValue, JsValue>::Ok(
+                    [JsValue::from_str(key.as_str()), make_token_value(&value)?]
+                        .iter()
+                        .collect::<js_sys::Array>()
+                        .unchecked_into(),
+                )
+            })
+            .collect::<Result<js_sys::Array, _>>()?
+            .unchecked_into(),
+        ton_abi::TokenValue::Address(value) => JsValue::from(value.to_string()),
+        ton_abi::TokenValue::Bytes(value) | ton_abi::TokenValue::FixedBytes(value) => {
+            JsValue::from(base64::encode(value))
+        }
+        ton_abi::TokenValue::String(value) => JsValue::from(value),
+        ton_abi::TokenValue::Token(value) => JsValue::from(value.0.to_string()),
+        ton_abi::TokenValue::Time(value) => JsValue::from(value.to_string()),
+        ton_abi::TokenValue::Expire(value) => JsValue::from(*value),
+        ton_abi::TokenValue::PublicKey(value) => {
+            JsValue::from(value.map(|value| hex::encode(value.as_bytes())))
+        }
+        ton_abi::TokenValue::Optional(_, value) => match value {
+            Some(value) => make_token_value(value)?,
+            None => JsValue::null(),
+        },
+    })
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const TOKEN: &str = r#"
+export type AbiToken =
+    | boolean
+    | string
+    | number
+    | { [K in string]: AbiToken }
+    | AbiToken[]
+    | (readonly [AbiToken, AbiToken])[];
+    
+type TokensObject = { [K in string]: AbiToken };
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "TokensObject")]
+    pub type TokensObject;
+}
+
+fn make_tokens_object(tokens: &[ton_abi::Token]) -> Result<TokensObject, JsValue> {
+    let object = js_sys::Object::new();
+    for token in tokens.iter() {
+        js_sys::Reflect::set(
+            &object,
+            &JsValue::from_str(&token.name),
+            &make_token_value(&token.value)?,
+        )
+        .trust_me();
+    }
+    Ok(object.unchecked_into())
 }
 
 struct ObjectBuilder {

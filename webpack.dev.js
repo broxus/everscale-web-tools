@@ -1,3 +1,4 @@
+const { DefinePlugin } = require('webpack');
 const { WebpackPluginServe } = require('webpack-plugin-serve');
 
 const { merge } = require('webpack-merge');
@@ -8,6 +9,11 @@ module.exports = merge(common, {
   mode: 'development',
   devtool: 'inline-source-map',
   plugins: [
+    new DefinePlugin({
+      'process.env': {
+        NODE_ENV: JSON.stringify('development')
+      }
+    }),
     new WebpackPluginServe({
       static: common.output.path,
       liveReload: true,

@@ -1,4 +1,5 @@
 const path = require('path');
+const { IgnorePlugin } = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
@@ -40,7 +41,7 @@ module.exports = {
         ]
       },
       {
-        test: /\.(png|jpe?g|gif)$/i,
+        test: /\.(png|jpe?g|gif|webmanifest)$/i,
         use: [
           {
             loader: 'file-loader'
@@ -53,18 +54,27 @@ module.exports = {
     extensions: ['.tsx', '.ts', '.js']
   },
   plugins: [
+    new IgnorePlugin({
+      resourceRegExp: /^wbg$/
+    }),
     new CleanWebpackPlugin({ cleanStaleWebpackAssets: false }),
-    new HtmlWebpackPlugin({ template: 'public/index.html' }),
+    new HtmlWebpackPlugin({
+      template: 'public/index.html',
+      inject: 'head'
+    }),
     new WasmPackPlugin({
       extraArgs: '--target web',
       crateDirectory: path.resolve(__dirname, 'core')
     }),
     new CopyWebpackPlugin({
-      patterns: [{ from: path.resolve(__dirname, 'core/pkg/index_bg.wasm') }]
+      patterns: [
+        { from: path.resolve(__dirname, 'core/pkg/index_bg.wasm') },
+        { from: path.resolve(__dirname, 'public/manifest'), to: outputPath }
+      ]
     })
   ],
   output: {
-    filename: '[name].js',
+    filename: '[name].[hash].js',
     path: outputPath
   },
   experiments: {

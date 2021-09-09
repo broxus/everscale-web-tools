@@ -2,24 +2,28 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { BrowserRouter as Router, Switch, Route, Redirect, useHistory, useLocation } from 'react-router-dom';
 
-import 'reset-css';
 import './styles/main.scss';
 
 import init from '../core/pkg';
 import './common';
 
-import { WorkspaceSelector, WorkspaceItem } from './components/WorkspaceSelector';
+import { Navbar } from './components/Navbar';
 import { VisualizerWorkspace } from './components/VisualizerWorkspace';
 import { SerializerWorkspace } from './components/SerializerWorkspace';
 
 const WORKSPACES = [
   {
-    name: 'Visualizer',
+    name: 'executor',
+    path: '/executor',
+    component: () => <VisualizerWorkspace />
+  },
+  {
+    name: 'visualizer',
     path: '/visualizer',
     component: () => <VisualizerWorkspace />
   },
   {
-    name: 'Serializer',
+    name: 'serializer',
     path: '/serializer',
     component: () => <SerializerWorkspace />
   }
@@ -30,18 +34,8 @@ const App: React.FC = () => {
   const location = useLocation();
 
   return (
-    <>
-      <WorkspaceSelector>
-        {WORKSPACES.map(workspace => (
-          <WorkspaceItem
-            key={workspace.name}
-            active={location.pathname === workspace.path}
-            name={workspace.name}
-            onClick={() => history.push(workspace.path)}
-          />
-        ))}
-      </WorkspaceSelector>
-      <hr />
+    <div className="container is-fluid">
+      <Navbar />
       <Switch>
         <Route exact path="/">
           <Redirect to={WORKSPACES[0].path} />
@@ -52,7 +46,7 @@ const App: React.FC = () => {
           </Route>
         ))}
       </Switch>
-    </>
+    </div>
   );
 };
 

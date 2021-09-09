@@ -2,17 +2,19 @@ mod lexer;
 mod parser;
 
 use anyhow::Result;
-use sha2::Digest;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Bool,
     Int(u16),
     Uint(u16),
+    VarInt(u16),
+    VarUint(u16),
     Address,
     Bytes,
+    String,
     Cell,
-    Gram,
+    Token,
     Array(Box<Token>),
     Map(Box<Token>, Box<Token>),
     Tuple(Vec<Token>),

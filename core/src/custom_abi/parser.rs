@@ -165,6 +165,7 @@ fn parse_ident(position: usize, ident: &str) -> Result<Option<Ident>, ParserErro
     Ok(Some(match ident {
         "bool" => Ident::Bool,
         "bytes" => Ident::Bytes,
+        "string" => Ident::String,
         "addr" | "address" => Ident::Address,
         "cell" => Ident::Cell,
         "gram" => Ident::Gram,
@@ -173,6 +174,11 @@ fn parse_ident(position: usize, ident: &str) -> Result<Option<Ident>, ParserErro
 }
 
 fn parse_ident_integer(position: usize, ident: &str) -> Result<Option<Ident>, ParserError> {
+    let (ident, var) = match ident.strip_prefix("var") {
+        Some(ident) => (ident, true),
+        None => (ident, false),
+    };
+
     if ident.len() < 2 {
         return Ok(None);
     }
@@ -193,9 +199,11 @@ fn parse_ident_integer(position: usize, ident: &str) -> Result<Option<Ident>, Pa
         }
     };
 
-    Ok(Some(match signed {
-        true => Ident::Int(size),
-        false => Ident::Uint(size),
+    Ok(Some(match (var, signed) {
+        (true, true) => Ident::VarInt(size),
+        (true, false) => Ident::VarUint(size),
+        (false, true) => Ident::Int(size),
+        (false, false) => Ident::Uint(size),
     }))
 }
 
@@ -322,8 +330,11 @@ enum Ident {
     Bool,
     Int(u16),
     Uint(u16),
+    VarInt(u16),
+    VarUint(u16),
     Address,
     Bytes,
+    String,
     Cell,
     Gram,
 }
@@ -334,10 +345,13 @@ impl From<Ident> for Token {
             Ident::Bool => Token::Bool,
             Ident::Int(size) => Token::Int(size),
             Ident::Uint(size) => Token::Uint(size),
+            Ident::VarInt(size) => Token::VarInt(size),
+            Ident::VarUint(size) => Token::VarUint(size),
             Ident::Address => Token::Address,
             Ident::Bytes => Token::Bytes,
+            Ident::String => Token::String,
             Ident::Cell => Token::Cell,
-            Ident::Gram => Token::Gram,
+            Ident::Gram => Token::Token,
         }
     }
 }

@@ -7,6 +7,12 @@ import './style.scss';
 
 type AbiValueData<K extends string> = core.AbiValue extends core.AbiValueWrapper<K, infer T> ? T : never;
 
+type Handler<K extends core.AbiValue['type']> = (
+  abi: core.AbiParamType,
+  value: AbiValueData<K>,
+  onChange: (newData: typeof value) => void
+) => React.ReactNode;
+
 const makeTextField = <K extends core.AbiValue['type']>(
   _: core.AbiParamType,
   value: AbiValueData<K>,
@@ -79,27 +85,39 @@ const makeTupleField = <K extends core.AbiValue['type']>(
   });
 };
 
+const makeArrayField = <K extends core.AbiValue['type']>(
+  abi: core.AbiParamType,
+  value: AbiValueData<K>,
+  onChange: (newData: typeof value) => void
+): React.ReactNode => {
+  return <p>Hello world</p>;
+};
+
 const HANDLERS: {
-  [K in core.AbiValue['type']]: (
-    abi: core.AbiParamType,
-    value: AbiValueData<K>,
-    onChange: (newData: typeof value) => void
-  ) => React.ReactNode;
+  [K in core.AbiValue['type']]: Handler<K>;
 } = {
   //@ts-ignore
   uint: makeTextField,
   //@ts-ignore
   int: makeTextField,
   //@ts-ignore
+  varuint: makeTextField,
+  //@ts-ignore
+  varint: makeTextField,
+  //@ts-ignore
   bool: makeBoolField,
   //@ts-ignore
   tuple: makeTupleField,
+  //@ts-ignore
+  array: makeArrayField,
   //@ts-ignore
   cell: makeTextAreaField,
   //@ts-ignore
   address: makeTextAreaField,
   //@ts-ignore
   bytes: makeTextAreaField,
+  //@ts-ignore
+  string: makeTextAreaField,
   //@ts-ignore
   pubkey: makeTextAreaField
 };
@@ -144,7 +162,7 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
 }
 
 const getAbiTypeSignature = (param: core.AbiParamType): string => {
-  if (param.kind == 'uint' || param.kind == 'int') {
+  if (param.kind == 'uint' || param.kind == 'int' || param.kind == 'varuint' || param.kind == 'varint') {
     return `${param.kind}${param.info.size}`;
   } else if (param.kind == 'array') {
     return `${getAbiTypeSignature(param.info.type)}[]`;

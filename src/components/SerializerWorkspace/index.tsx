@@ -1,12 +1,15 @@
 import React from 'react';
+import classNames from 'classnames';
 
 import * as core from '../../../core/pkg';
 
 import { EntityBuilder } from '../EntityBuilder';
+import { hasTonProvider } from 'ton-inpage-provider';
 
 import './style.scss';
 
 export type SerializerWorkspaceState = {
+  hasTonProvider: boolean;
   abiInput: string;
   decodedAbi: { handler: core.AbiEntityHandler; data: core.AbiEntity } | null;
   error: string | null;
@@ -17,10 +20,19 @@ export class SerializerWorkspace extends React.Component<{}, SerializerWorkspace
     super(props);
 
     this.state = {
+      hasTonProvider: false,
       abiInput: '',
       decodedAbi: prepareHandler(core.parseAbi('')),
       error: null
     };
+  }
+
+  componentDidMount() {
+    hasTonProvider().then(hasTonProvider => {
+      this.setState({
+        hasTonProvider
+      });
+    });
   }
 
   clear = (callback?: () => void) => {
@@ -69,25 +81,38 @@ export class SerializerWorkspace extends React.Component<{}, SerializerWorkspace
     const { abiInput, decodedAbi, error } = this.state;
 
     return (
-      <div className="serializer-workspace">
-        <h1>Enter function signature or cell ABI:</h1>
-        <textarea
-          className="w100"
-          spellCheck={false}
-          onChange={event => {
-            this.handleAbi(event.target.value);
-          }}
-          onPaste={event => {
-            let pastedText = event.clipboardData.getData('text');
-            this.handleAbi(prettyPrint(pastedText));
-            event.preventDefault();
-          }}
-          value={abiInput}
-          rows={5}
-        />
-        {decodedAbi != null && <EntityBuilder abi={decodedAbi.data} handler={decodedAbi.handler} />}
-        {error != null && <pre className="error">{error}</pre>}
-      </div>
+      <>
+        <section className="section">
+          <div className="container is-fluid">
+            <div className="field">
+              <label className="label">Enter function signature or cell ABI:</label>
+              <div className="control">
+                <textarea
+                  className={classNames('textarea', { 'is-danger': error != null })}
+                  spellCheck={false}
+                  onChange={event => {
+                    this.handleAbi(event.target.value);
+                  }}
+                  onPaste={event => {
+                    let pastedText = event.clipboardData.getData('text');
+                    this.handleAbi(prettyPrint(pastedText));
+                    event.preventDefault();
+                  }}
+                  value={abiInput}
+                  rows={5}
+                />
+              </div>
+              {error != null && <p className="help is-danger">{error}</p>}
+            </div>
+          </div>
+        </section>
+
+        <section className="section">
+          <div className="container is-fluid">
+            {decodedAbi != null && <EntityBuilder abi={decodedAbi.data} handler={decodedAbi.handler} />}
+          </div>
+        </section>
+      </>
     );
   }
 }
