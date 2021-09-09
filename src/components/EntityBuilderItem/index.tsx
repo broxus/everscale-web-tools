@@ -7,66 +7,59 @@ import './style.scss';
 
 type AbiValueData<K extends string> = core.AbiValue extends core.AbiValueWrapper<K, infer T> ? T : never;
 
-type Handler<K extends core.AbiValue['type']> = (
-  abi: core.AbiParamType,
-  value: AbiValueData<K>,
-  onChange: (newData: typeof value) => void
-) => React.ReactNode;
+type HandlerArgs<K extends core.AbiValue['type']> = {
+  abi: core.AbiParamType;
+  value: AbiValueData<K>;
+  onChange: (newData: AbiValueData<K>) => void;
+};
 
-const makeTextField = <K extends core.AbiValue['type']>(
-  _: core.AbiParamType,
-  value: AbiValueData<K>,
-  onChange: (newData: typeof value) => void
-): React.ReactNode => (
-  <input
-    spellCheck={false}
-    type="text"
-    value={value as any}
-    onChange={e => {
-      onChange(e.target.value as any);
-    }}
-  />
-);
+type Handler = (args: HandlerArgs<core.AbiValue['type']>) => React.ReactNode;
 
-const makeTextAreaField = <K extends core.AbiValue['type']>(
-  _: core.AbiParamType,
-  value: AbiValueData<K>,
-  onChange: (newData: typeof value) => void
-): React.ReactNode => (
-  <textarea
-    className="w100"
-    spellCheck={false}
-    value={value as any}
-    onChange={e => {
-      onChange(e.target.value as any);
-    }}
-    rows={2}
-  />
-);
-
-const makeBoolField = <K extends core.AbiValue['type']>(
-  _: core.AbiParamType,
-  value: AbiValueData<K>,
-  onChange: (newData: typeof value) => void
-): React.ReactNode => (
-  <label className="checkbox control-checkbox">
-    {value?.toString() || false}
+const makeTextField: Handler = ({ value, onChange }): React.ReactNode => (
+  <div className="control">
     <input
-      type="checkbox"
-      checked={value as any}
-      onChange={() => {
-        onChange(!value as any);
+      className="input is-small"
+      spellCheck={false}
+      type="text"
+      value={value as any}
+      onChange={e => {
+        onChange(e.target.value as any);
       }}
     />
-    <div className="control_indicator" />
-  </label>
+  </div>
 );
 
-const makeTupleField = <K extends core.AbiValue['type']>(
-  abi: core.AbiParamType,
-  value: AbiValueData<K>,
-  onChange: (newData: typeof value) => void
-): React.ReactNode => {
+const makeTextAreaField: Handler = ({ value, onChange }): React.ReactNode => (
+  <div className="control">
+    <textarea
+      className="textarea is-small"
+      spellCheck={false}
+      value={value as any}
+      onChange={e => {
+        onChange(e.target.value as any);
+      }}
+      rows={2}
+    />
+  </div>
+);
+
+const makeBoolField: Handler = ({ value, onChange }): React.ReactNode => (
+  <div className="control is-unselectable">
+    <label className="checkbox">
+      <input
+        type="checkbox"
+        checked={value as any}
+        onChange={() => {
+          onChange(!value as any);
+        }}
+      />
+      &nbsp;
+      {value?.toString() || false}
+    </label>
+  </div>
+);
+
+const makeTupleField: Handler = ({ abi, value, onChange }): React.ReactNode => {
   if (abi.kind !== 'tuple' || value == null) {
     return null;
   }
@@ -85,81 +78,59 @@ const makeTupleField = <K extends core.AbiValue['type']>(
   });
 };
 
-const makeArrayField = <K extends core.AbiValue['type']>(
-  abi: core.AbiParamType,
-  value: AbiValueData<K>,
-  onChange: (newData: typeof value) => void
-): React.ReactNode => {
-  return <p>Hello world</p>;
+const makeArrayField: Handler = ({ abi, value, onChange }): React.ReactNode => {
+  if (abi.kind !== 'array' || value == null) {
+    return null;
+  }
+  const values = value as core.AbiValue[];
+
+  return (
+    <>
+      {values.map((itemValue, i) => (
+        <EntityBuilderItem
+          key={i}
+          value={itemValue}
+          abi={{ name: `element[${i}]`, type: abi.info.type }}
+          onChange={newValue => {
+            (value as any[])[i] = newValue;
+            onChange(value);
+          }}
+          onDelete={() => {
+            (value as any[]).splice(i, 1);
+            onChange(value);
+          }}
+        />
+      ))}
+      <button
+        className="button is-fullwidth is-small"
+        onClick={() => {
+          const newValue = JSON.parse(JSON.stringify((abi.info as any).defaultValue));
+          (value as any[]).push(newValue);
+          onChange(value);
+        }}
+      >
+        Add element
+      </button>
+    </>
+  );
 };
 
 const HANDLERS: {
-  [K in core.AbiValue['type']]: Handler<K>;
+  [K in core.AbiValue['type']]: Handler;
 } = {
-  //@ts-ignore
   uint: makeTextField,
-  //@ts-ignore
   int: makeTextField,
-  //@ts-ignore
   varuint: makeTextField,
-  //@ts-ignore
   varint: makeTextField,
-  //@ts-ignore
   bool: makeBoolField,
-  //@ts-ignore
   tuple: makeTupleField,
-  //@ts-ignore
   array: makeArrayField,
-  //@ts-ignore
   cell: makeTextAreaField,
-  //@ts-ignore
   address: makeTextAreaField,
-  //@ts-ignore
   bytes: makeTextAreaField,
-  //@ts-ignore
   string: makeTextAreaField,
-  //@ts-ignore
   pubkey: makeTextAreaField
 };
-
-type EntityBuilderItemProps = {
-  abi: core.AbiParam;
-  value: core.AbiValue;
-  onChange?: (data: core.AbiValue) => void;
-};
-
-export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
-  constructor(props: EntityBuilderItemProps) {
-    super(props);
-  }
-
-  render() {
-    const { abi, value, onChange } = this.props;
-
-    const type = abi.type;
-
-    const showInput = () => {
-      const handler = HANDLERS[value.type];
-      if (handler == null) {
-        return 'Unsupported';
-      }
-      //@ts-ignore
-      return handler(abi.type, value.data, data =>
-        onChange?.({
-          type: value.type,
-          data
-        })
-      );
-    };
-
-    return (
-      <div className="entity-builder-item">
-        <span>{`${abi.name != '' ? `${abi.name}: ` : ''}${getAbiTypeSignature(type)}`}</span>
-        {showInput()}
-      </div>
-    );
-  }
-}
 
 const getAbiTypeSignature = (param: core.AbiParamType): string => {
   if (param.kind == 'uint' || param.kind == 'int' || param.kind == 'varuint' || param.kind == 'varint') {
@@ -176,3 +147,59 @@ const getAbiTypeSignature = (param: core.AbiParamType): string => {
     return param.kind;
   }
 };
+
+type EntityBuilderItemProps = {
+  abi: core.AbiParam;
+  value: core.AbiValue;
+  onChange?: (data: core.AbiValue) => void;
+  onDelete?: () => void;
+};
+
+export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
+  constructor(props: EntityBuilderItemProps) {
+    super(props);
+  }
+
+  render() {
+    const { abi, value, onChange, onDelete } = this.props;
+
+    const type = abi.type;
+
+    const showInput = () => {
+      const handler = HANDLERS[value.type];
+      if (handler == null) {
+        return 'Unsupported';
+      }
+      return handler({
+        abi: abi.type,
+        value: value.data,
+        onChange: (data: any) =>
+          onChange?.({
+            type: value.type,
+            data
+          } as any)
+      });
+    };
+
+    const isGroup = abi.type.kind == 'tuple';
+
+    const name = `${abi.name != '' ? `${abi.name}: ` : ''}${getAbiTypeSignature(type)}`;
+
+    return (
+      <div className="field box p-3">
+        {/*<div className="columns is-gapless">*/}
+        {/*  <div className="column is-narrow">{onDelete != null && <button className="delete" onClick={onDelete} />}</div>*/}
+        {/*</div>*/}
+        {onDelete == null ? (
+          <span className={classNames('tag', { 'mb-3': isGroup })}>{name}</span>
+        ) : (
+          <div className="tags has-addons mb-0">
+            <span className="tag mb-0">{name}</span>
+            <a className="tag is-delete mb-0" onClick={onDelete} />
+          </div>
+        )}
+        {showInput()}
+      </div>
+    );
+  }
+}

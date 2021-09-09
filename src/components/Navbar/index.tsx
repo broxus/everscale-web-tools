@@ -2,8 +2,6 @@ import React from 'react';
 import classNames from 'classnames';
 import { Link, useLocation } from 'react-router-dom';
 
-import './style.scss';
-
 export const Navbar: React.FC = () => {
   const { pathname } = useLocation();
 

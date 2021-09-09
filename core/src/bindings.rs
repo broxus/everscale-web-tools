@@ -253,6 +253,9 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
             | (ton_abi::ParamType::FixedBytes(_), JsAbiValue::Bytes(bytes)) => {
                 ton_abi::TokenValue::Bytes(bytes)
             }
+            (ton_abi::ParamType::String, JsAbiValue::String(value)) => {
+                ton_abi::TokenValue::String(value)
+            }
             (ton_abi::ParamType::Cell, JsAbiValue::Cell(cell)) => ton_abi::TokenValue::Cell(cell),
             (ton_abi::ParamType::Token, JsAbiValue::Uint(value)) => match value.to_u128() {
                 Some(grams) => ton_abi::TokenValue::Token(ton_block::Grams(grams)),
@@ -268,6 +271,15 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
             },
             (ton_abi::ParamType::PublicKey, JsAbiValue::PublicKey(public_key)) => {
                 ton_abi::TokenValue::PublicKey(public_key)
+            }
+            (ton_abi::ParamType::Optional(param_type), JsAbiValue::Optional(value)) => {
+                ton_abi::TokenValue::Optional(
+                    *param_type.clone(),
+                    value
+                        .map(|value| parse_token_value((param_type.as_ref(), *value)))
+                        .transpose()?
+                        .map(Box::new),
+                )
             }
             _ => return Err(AbiError::InvalidType.into()),
         })
@@ -439,7 +451,6 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
                 .collect::<js_sys::Array>()
                 .unchecked_into(),
         ),
-        ton_abi::ParamType::Map(_, _) => ("map", ObjectBuilder::new().build()),
         ton_abi::ParamType::FixedArray(param, len) => (
             "array",
             std::iter::repeat_with(|| make_default_state(param.as_ref()))
@@ -448,6 +459,7 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
                 .collect::<js_sys::Array>()
                 .unchecked_into(),
         ),
+        ton_abi::ParamType::Map(_, _) => ("map", ObjectBuilder::new().build()),
         ton_abi::ParamType::Cell => ("cell", JsValue::from(encode_empty_cell().trust_me())),
         ton_abi::ParamType::Address => (
             "address",
@@ -576,11 +588,13 @@ enum JsAbiValue {
     Address(MsgAddressInt),
     #[serde(deserialize_with = "serde_helpers::deserialize_bytes")]
     Bytes(Vec<u8>),
+    String(String),
     #[serde(
         rename = "pubkey",
         deserialize_with = "serde_helpers::deserialize_optional_pubkey"
     )]
     PublicKey(Option<ed25519_dalek::PublicKey>),
+    Optional(Option<Box<JsAbiValue>>),
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -629,7 +643,7 @@ export type AbiParamType =
   | EnumWrapper<'varint', { size: number }>
   | EnumWrapper<'bool', null>
   | EnumWrapper<'tuple', { types: Array<AbiParam> }>
-  | EnumWrapper<'array', { type: AbiParamType }>
+  | EnumWrapper<'array', { type: AbiParamType, defaultValue: AbiValueWrapper }>
   | EnumWrapper<'fixedarray', { type: AbiParamType, size: number }>
   | EnumWrapper<'cell', null>
   | EnumWrapper<'map', { key: AbiParamType, value: AbiParamType }>
@@ -743,7 +757,8 @@ fn serialize_param_type(param: &ton_abi::ParamType) -> JsValue {
         ton_abi::ParamType::Array(ty) => (
             "array",
             ObjectBuilder::new()
-                .set("type", serialize_param_type(ty.as_ref()))
+                .set("type", serialize_param_type(ty))
+                .set("defaultValue", make_default_state(ty))
                 .build(),
         ),
         ton_abi::ParamType::FixedArray(ty, size) => (

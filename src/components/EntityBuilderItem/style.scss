@@ -1,13 +1,8 @@
-@import "../../styles/colors";
 @import "../../styles/constants";
 
 .entity-builder-item {
-  padding: 0.5em;
-  margin: 0.5em;
-
   display: flex;
   flex-direction: column;
-  background-color: rgba(lighten($background-color, 10), 0.5);
   background-blend-mode: saturation;
 
   span {
