@@ -4,12 +4,10 @@ import classNames from 'classnames';
 import * as core from '../../../core/pkg';
 
 import { EntityBuilder } from '../EntityBuilder';
-import { hasTonProvider } from 'ton-inpage-provider';
 
 import './style.scss';
 
 export type SerializerWorkspaceState = {
-  hasTonProvider: boolean;
   abiInput: string;
   decodedAbi: { handler: core.AbiEntityHandler; data: core.AbiEntity } | null;
   error: string | null;
@@ -20,19 +18,10 @@ export class SerializerWorkspace extends React.Component<{}, SerializerWorkspace
     super(props);
 
     this.state = {
-      hasTonProvider: false,
       abiInput: '',
       decodedAbi: prepareHandler(core.parseAbi('')),
       error: null
     };
-  }
-
-  componentDidMount() {
-    hasTonProvider().then(hasTonProvider => {
-      this.setState({
-        hasTonProvider
-      });
-    });
   }
 
   clear = (callback?: () => void) => {

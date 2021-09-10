@@ -187,9 +187,6 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
 
     return (
       <div className="field box p-3">
-        {/*<div className="columns is-gapless">*/}
-        {/*  <div className="column is-narrow">{onDelete != null && <button className="delete" onClick={onDelete} />}</div>*/}
-        {/*</div>*/}
         {onDelete == null ? (
           <span className={classNames('tag', { 'mb-3': isGroup })}>{name}</span>
         ) : (

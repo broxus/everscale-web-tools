@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import ton, { Permissions, Subscriber } from 'ton-inpage-provider';
 import { BrowserRouter as Router, Switch, Route, Redirect, useHistory, useLocation } from 'react-router-dom';
+import { Mutex } from '@broxus/await-semaphore';
 
 import './styles/main.scss';
 
@@ -8,45 +10,109 @@ import init from '../core/pkg';
 import './common';
 
 import { Navbar } from './components/Navbar';
+import { ExecutorWorkspace } from './components/ExecutorWorkspace';
 import { VisualizerWorkspace } from './components/VisualizerWorkspace';
 import { SerializerWorkspace } from './components/SerializerWorkspace';
 
-const WORKSPACES = [
-  {
-    name: 'executor',
-    path: '/executor',
-    component: () => <VisualizerWorkspace />
-  },
-  {
-    name: 'visualizer',
-    path: '/visualizer',
-    component: () => <VisualizerWorkspace />
-  },
-  {
-    name: 'serializer',
-    path: '/serializer',
-    component: () => <SerializerWorkspace />
-  }
-];
+const connectToWallet = async () => {
+  await ton.requestPermissions({
+    permissions: ['tonClient', 'accountInteraction']
+  });
+};
+
+const disconnectFromWallet = async () => {
+  await ton.disconnect();
+};
+
+const walletMutex: Mutex = new Mutex();
+let walletSubscriber: Subscriber | undefined = undefined;
 
 const App: React.FC = () => {
-  const history = useHistory();
-  const location = useLocation();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [hasTonProvider, setHasTonProvider] = useState(false);
+  const [walletAccount, setWalletAccount] = useState<Permissions['accountInteraction']>();
+  const [walletBalance, setWalletBalance] = useState<string>();
+
+  useEffect(() => {
+    if (walletAccount == null) {
+      return;
+    }
+
+    walletMutex
+      .use(async () => {
+        walletSubscriber = ton.createSubscriber();
+        const { state } = await ton.getFullContractState({
+          address: walletAccount.address
+        });
+
+        setWalletBalance(state?.balance || '0');
+        walletSubscriber.states(walletAccount.address).on(state => {
+          setWalletBalance(state.state.balance);
+        });
+      })
+      .catch(console.error);
+
+    return () => {
+      walletMutex
+        .use(async () => {
+          await walletSubscriber?.unsubscribe();
+          setWalletBalance(undefined);
+        })
+        .catch(console.error);
+    };
+  }, [walletAccount]);
+
+  useEffect(() => {
+    ton.hasProvider().then(async hasTonProvider => {
+      setHasTonProvider(hasTonProvider);
+      if (hasTonProvider) {
+        await ton.ensureInitialized();
+        (await ton.subscribe('permissionsChanged')).on('data', event => {
+          setWalletAccount(event.permissions.accountInteraction);
+        });
+
+        const currentProviderState = await ton.getProviderState();
+        if (currentProviderState.permissions.accountInteraction != null) {
+          await connectToWallet();
+        }
+      }
+    });
+  }, []);
+
+  const onConnect = async () => {
+    try {
+      setIsConnecting(true);
+      await connectToWallet();
+    } finally {
+      setIsConnecting(false);
+    }
+  };
 
   return (
-    <div className="container is-fluid">
-      <Navbar />
+    <>
+      <Navbar
+        hasTonProvider={hasTonProvider}
+        walletAddress={walletAccount?.address}
+        walletBalance={walletBalance}
+        isConnecting={isConnecting}
+        onConnect={onConnect}
+        onDisconnect={disconnectFromWallet}
+      />
       <Switch>
         <Route exact path="/">
-          <Redirect to={WORKSPACES[0].path} />
+          <Redirect to="/executor" />
         </Route>
-        {WORKSPACES.map(workspace => (
-          <Route key={workspace.name} exact path={workspace.path}>
-            {workspace.component()}
-          </Route>
-        ))}
+        <Route key="executor" exact path="/executor">
+          <ExecutorWorkspace hasTonProvider={hasTonProvider} walletAccount={walletAccount} />
+        </Route>
+        <Route key="visualizer" exact path="/visualizer">
+          <VisualizerWorkspace />
+        </Route>
+        <Route key="serializer" exact path="/serializer">
+          <SerializerWorkspace />
+        </Route>
       </Switch>
-    </div>
+    </>
   );
 };
 

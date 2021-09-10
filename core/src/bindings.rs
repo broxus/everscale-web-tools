@@ -40,6 +40,77 @@ pub fn decode(boc: &str) -> Result<String, JsValue> {
     Ok(result)
 }
 
+#[wasm_bindgen(js_name = "validateContractAbi")]
+pub fn validate_contract_abi(input: &str) -> Result<ValidatedAbi, JsValue> {
+    #[derive(Deserialize)]
+    struct SerdeFunction {
+        pub name: String,
+    }
+
+    #[derive(Deserialize)]
+    struct SerdeEvent {
+        pub name: String,
+    }
+
+    #[derive(Deserialize)]
+    struct SerdeContract {
+        pub functions: Vec<SerdeFunction>,
+        #[serde(default)]
+        events: Vec<SerdeEvent>,
+    }
+
+    let intermediate_contract: SerdeContract = serde_json::from_str(input).handle_error()?;
+
+    let contract: ton_abi::Contract =
+        ton_abi::Contract::load(&mut std::io::Cursor::new(input)).handle_error()?;
+
+    let functions = contract
+        .functions()
+        .keys()
+        .map(JsValue::from)
+        .collect::<js_sys::Array>();
+
+    let events = contract
+        .events()
+        .keys()
+        .map(JsValue::from)
+        .collect::<js_sys::Array>();
+
+    let function_handlers = intermediate_contract
+        .functions
+        .into_iter()
+        .filter_map(|SerdeFunction { name }| {
+            let function = contract.function(&name).ok()?;
+            Some(AbiFunctionHandler {
+                inner: function.clone(),
+            })
+        })
+        .map(JsValue::from)
+        .collect::<js_sys::Array>();
+
+    Ok(ObjectBuilder::new()
+        .set("functionHandlers", function_handlers)
+        .set("functionNames", functions)
+        .set("eventNames", events)
+        .build()
+        .unchecked_into())
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "ValidatedAbi")]
+    pub type ValidatedAbi;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const VALIDATED_ABI: &'static str = r#"
+export type ValidatedAbi = {
+    functionHandlers: AbiFunctionHandler[],
+    functionNames: string[];
+    eventNames: string[];
+};
+"#;
+
 #[wasm_bindgen(js_name = "parseAbi")]
 pub fn parse_abi(input: &str) -> Result<AbiEntityHandler, JsValue> {
     let inner = custom_abi::parse(input)
@@ -128,59 +199,6 @@ pub fn encode_abi_entry(
         .handle_error()
         .map(base64::encode)
 }
-//
-// #[wasm_bindgen(js_name = "encodeAbi")]
-// pub fn encode_abi(entiry: &AbiEntityHandler) -> Result<Option<String>, JsValue> {
-//     let function = match &entiry.inner {
-//         Entity::Function(function) => function,
-//         _ => return Ok(None),
-//     };
-//
-//     #[derive(Serialize)]
-//     struct SerdeFunction<'a> {
-//         pub name: &'a str,
-//         pub inputs: &'a [ton_abi::Param],
-//         pub outputs: &'a [ton_abi::Param],
-//         pub id: u32,
-//     }
-//
-//     #[derive(Serialize)]
-//     struct SerdeContract<'a> {
-//         #[serde(rename = "ABI version")]
-//         pub abi_version: u8,
-//         pub functions: Vec<SerdeFunction<'a>>,
-//     }
-//
-//     Ok(Some(
-//         serde_json::to_string(&SerdeContract {
-//             abi_version: 2,
-//             functions: vec![SerdeFunction {
-//                 name: &function.name,
-//                 inputs: &function.inputs,
-//                 outputs: &function.outputs,
-//                 id: function.get_function_id(),
-//             }],
-//         })
-//         .handle_error()?,
-//     ))
-// }
-//
-// #[wasm_bindgen(js_name = "encodeTokensObject")]
-// pub fn encode_tokens_object(
-//     entity: &AbiEntityHandler,
-//     values: AbiValueArray,
-// ) -> Result<Option<TokensObject>, JsValue> {
-//     let values = values.unchecked_into();
-//
-//     let params: Vec<ton_abi::Token> = match &entity.inner {
-//         Entity::Empty => return Ok(None),
-//         Entity::Cell(inputs) => parse_abi_values(inputs, values).handle_error()?,
-//         Entity::Function(function) => parse_abi_values(&function.inputs, values).handle_error()?,
-//     };
-//
-//     let tokens = make_tokens_object(&params)?;
-//     Ok(Some(tokens))
-// }
 
 fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_abi::Token>> {
     let address = ton_block::MsgAddressInt::construct_from_base64(
@@ -393,6 +411,60 @@ enum AbiError {
     InvalidInteger,
     #[error("Invalid type")]
     InvalidType,
+}
+
+#[wasm_bindgen]
+pub struct AbiFunctionHandler {
+    #[wasm_bindgen(skip)]
+    pub inner: ton_abi::Function,
+}
+
+#[wasm_bindgen]
+impl AbiFunctionHandler {
+    #[wasm_bindgen(getter, js_name = "functionName")]
+    pub fn function_name(&self) -> String {
+        self.inner.name.clone()
+    }
+
+    #[wasm_bindgen(getter, js_name = "inputId")]
+    pub fn input_id(&self) -> String {
+        format!("{:08x}", self.inner.input_id)
+    }
+
+    #[wasm_bindgen(getter, js_name = "outputId")]
+    pub fn output_id(&self) -> String {
+        format!("{:08x}", self.inner.output_id)
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn data(&self) -> AbiParamArray {
+        self.inner
+            .inputs
+            .iter()
+            .map(serialize_param)
+            .collect::<js_sys::Array>()
+            .unchecked_into()
+    }
+
+    #[wasm_bindgen(js_name = "makeTokensObject")]
+    pub fn make_tokens_object(&self, values: AbiValueArray) -> Result<TokensObject, JsValue> {
+        let values = values.unchecked_into();
+        let function = &self.inner;
+
+        let values = parse_abi_values(&function.inputs, values).handle_error()?;
+        make_tokens_object(&values)
+    }
+
+    #[wasm_bindgen(js_name = "makeDefaultState")]
+    pub fn make_default_state(&self) -> AbiValueArray {
+        self.inner
+            .inputs
+            .iter()
+            .map(|param| make_default_state(&param.kind))
+            .map(JsValue::from)
+            .collect::<js_sys::Array>()
+            .unchecked_into()
+    }
 }
 
 #[wasm_bindgen]
@@ -662,6 +734,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "Array<AbiValue>")]
     pub type AbiValueArray;
 
+    #[wasm_bindgen(typescript_type = "Array<AbiParam>")]
+    pub type AbiParamArray;
+
     #[wasm_bindgen(typescript_type = "AbiValue")]
     pub type AbiValue;
 
@@ -800,17 +875,18 @@ fn make_token_value(value: &ton_abi::TokenValue) -> Result<JsValue, JsValue> {
     Ok(match value {
         ton_abi::TokenValue::Uint(value) => JsValue::from(value.number.to_string()),
         ton_abi::TokenValue::Int(value) => JsValue::from(value.number.to_string()),
-        ton_abi::TokenValue::VarUint(_, value) => JsValue::from(value.to_string()),
         ton_abi::TokenValue::VarInt(_, value) => JsValue::from(value.to_string()),
+        ton_abi::TokenValue::VarUint(_, value) => JsValue::from(value.to_string()),
         ton_abi::TokenValue::Bool(value) => JsValue::from(*value),
         ton_abi::TokenValue::Tuple(values) => {
             let tuple = js_sys::Object::new();
-            for token in values {
+            for token in values.iter() {
                 js_sys::Reflect::set(
                     &tuple,
                     &JsValue::from_str(&token.name),
                     &make_token_value(&token.value)?,
-                )?;
+                )
+                .trust_me();
             }
             tuple.unchecked_into()
         }
