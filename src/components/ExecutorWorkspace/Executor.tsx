@@ -260,7 +260,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
     setError(undefined);
     setInProgress(true);
     (async () => {
-      const output = ton.rawApi.runLocal({
+      const output = await ton.rawApi.runLocal({
         address,
         functionCall: {
           abi: contractAbi.abi,
@@ -312,7 +312,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
     setError(undefined);
     setInProgress(true);
     (async () => {
-      const output = ton.rawApi.sendMessage({
+      const output = await ton.rawApi.sendMessage({
         sender: wallet.address.toString(),
         recipient: address,
         amount: convertFromTons(attached),
@@ -402,7 +402,7 @@ export type ExecutorProps = {
   onChangeAbi: (abi: ParsedAbi) => void;
 };
 
-export const Executor: React.FC<ExecutorProps> = ({ wallet, inProgress, address, abi, onChangeAbi }) => {
+export const Executor: React.FC<ExecutorProps> = ({ version, wallet, inProgress, address, abi, onChangeAbi }) => {
   return (
     <>
       <AbiForm inProgress={inProgress} onChangeAbi={onChangeAbi} />
@@ -411,7 +411,7 @@ export const Executor: React.FC<ExecutorProps> = ({ wallet, inProgress, address,
           {abi.functionHandlers.map(({ abi: functionAbi, handler }, i) => {
             return (
               <FunctionItem
-                key={i}
+                key={`${i}${version}`}
                 wallet={wallet}
                 address={address}
                 contractAbi={abi}

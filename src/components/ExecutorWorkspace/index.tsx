@@ -145,7 +145,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
             address,
             continuation: {
               lt: state.lastTransactionId.lt,
-              hash: state.lastTransactionId.hash || ''
+              hash: state.lastTransactionId.hash || '00'.repeat(32)
             }
           });
           if (info != null) {
