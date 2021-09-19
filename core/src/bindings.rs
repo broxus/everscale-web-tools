@@ -201,12 +201,6 @@ pub fn encode_abi_entry(
 }
 
 fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_abi::Token>> {
-    let address = ton_block::MsgAddressInt::construct_from_base64(
-        "te6ccgEBAQEAJAAAQ4AEAU3UVdPEtc8TkI1Rr4Wy1/rYDbgtSqYLr+YvwfN281A=",
-    )
-    .unwrap();
-    log(&format!("{:?}", address));
-
     fn parse_token((param, value): (&ton_abi::Param, JsAbiValue)) -> Result<ton_abi::Token> {
         let value = parse_token_value((&param.kind, value))?;
         Ok(ton_abi::Token {
@@ -321,6 +315,7 @@ mod serde_helpers {
 
     use std::str::FromStr;
 
+    use num_traits::Num;
     use serde::de;
     use serde::de::Error;
     use ton_block::Deserializable;
@@ -331,6 +326,7 @@ mod serde_helpers {
         D: de::Deserializer<'de>,
     {
         let encoded = String::deserialize(deserializer)?;
+        let encoded = encoded.trim();
         let bytes = base64::decode(&encoded).map_err(D::Error::custom)?;
         ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(bytes))
             .map_err(D::Error::custom)
@@ -340,7 +336,7 @@ mod serde_helpers {
     where
         D: de::Deserializer<'de>,
     {
-        MsgAddressInt::from_str(&String::deserialize(deserializer)?).map_err(D::Error::custom)
+        MsgAddressInt::from_str(String::deserialize(deserializer)?.trim()).map_err(D::Error::custom)
     }
 
     pub fn deserialize_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
@@ -348,6 +344,7 @@ mod serde_helpers {
         D: de::Deserializer<'de>,
     {
         let string = String::deserialize(deserializer)?;
+        let string = string.trim();
         hex::decode(&string)
             .or_else(|_| base64::decode(&string))
             .map_err(D::Error::custom)
@@ -360,7 +357,7 @@ mod serde_helpers {
         D: de::Deserializer<'de>,
     {
         if let Some(string) = Option::<String>::deserialize(deserializer)? {
-            let bytes = hex::decode(&string).map_err(D::Error::custom)?;
+            let bytes = hex::decode(string.trim()).map_err(D::Error::custom)?;
             ed25519_dalek::PublicKey::from_bytes(&bytes)
                 .map(Some)
                 .map_err(D::Error::custom)
@@ -382,8 +379,15 @@ mod serde_helpers {
     {
         match NumberValue::<u64>::deserialize(deserializer)? {
             NumberValue::Number(number) => Ok(BigUint::from(number)),
-            NumberValue::String(string) if !string.is_empty() => {
-                BigUint::from_str(&string).map_err(D::Error::custom)
+            NumberValue::String(string) => {
+                let string = string.trim();
+                if string.is_empty() {
+                    return Ok(Default::default());
+                }
+                match string.strip_prefix("0x") {
+                    Some(hex) => BigUint::from_str_radix(hex, 16).map_err(D::Error::custom),
+                    None => BigUint::from_str(string).map_err(D::Error::custom),
+                }
             }
             _ => Ok(Default::default()),
         }
@@ -395,8 +399,15 @@ mod serde_helpers {
     {
         match NumberValue::<i64>::deserialize(deserializer)? {
             NumberValue::Number(number) => Ok(BigInt::from(number)),
-            NumberValue::String(string) if !string.is_empty() => {
-                BigInt::from_str(&string).map_err(D::Error::custom)
+            NumberValue::String(string) => {
+                let string = string.trim();
+                if string.is_empty() {
+                    return Ok(Default::default());
+                }
+                match string.strip_prefix("0x") {
+                    Some(hex) => BigInt::from_str_radix(hex, 16).map_err(D::Error::custom),
+                    None => BigInt::from_str(string).map_err(D::Error::custom),
+                }
             }
             _ => Ok(Default::default()),
         }
