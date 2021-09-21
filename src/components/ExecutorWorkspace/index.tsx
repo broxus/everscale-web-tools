@@ -13,7 +13,7 @@ import ton, {
 } from 'ton-inpage-provider';
 import { Mutex } from '@broxus/await-semaphore';
 import { SideBar } from './SideBar';
-import { Executor, ParsedAbi } from './Executor';
+import { AbiForm, Executor, ParsedAbi } from './Executor';
 
 type ExecutorWorkspaceProps = {
   hasTonProvider: boolean;
@@ -29,12 +29,17 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
   const [accountAddress, setAccountAddress] = useState<string>();
   const [accountState, setAccountState] = useState<ContractState>();
   const [transactionCount, setTransactionCount] = useState<number>(0);
-  const [version, setVersion] = useState(0);
+  const [transactionVersion, setTransactionVersion] = useState(0);
+  const [abiVersion, setAbiVersion] = useState(0);
   const [abi, setAbi] = useState<ParsedAbi>();
 
-  const invalidateComponents = () => {
-    setVersion(version + 1);
+  const invalidateTransactions = () => {
+    setTransactionVersion(transactionVersion + 1);
   };
+
+  const invalidateAbi = () => {
+    setAbiVersion(abiVersion + 1)
+  }
 
   const handleTransactions = ({ transactions, info }: { transactions: Transaction[]; info: TransactionsBatchInfo }) => {
     if (transactions.length == 0) {
@@ -113,7 +118,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
             } catch (e) {}
           })
         );
-        invalidateComponents();
+        invalidateTransactions();
       })
       .catch(console.error);
   }, [abi?.abi, transactionCount]);
@@ -190,7 +195,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
         <div className="columns">
           <div className="column is-4">
             <SideBar
-              version={version}
+              version={transactionVersion}
               inProgress={inProgress}
               address={accountAddress}
               state={accountState}
@@ -201,25 +206,26 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
             />
           </div>
           <div className="column is-8">
+            <AbiForm inProgress={inProgress} onChangeAbi={newAbi => {
+              setAbi(prevAbi => {
+                if (prevAbi != null) {
+                  for (const item of prevAbi.functionHandlers) {
+                    item.handler.free();
+                  }
+                  prevAbi.functionHandlers.splice(0, prevAbi.functionHandlers.length);
+                }
+                invalidateAbi();
+                return newAbi;
+              });
+            }} />
+
             {accountState != null && (
               <Executor
                 wallet={walletAccount}
-                version={version}
-                inProgress={inProgress}
+                version={abiVersion}
                 address={accountAddress}
                 state={accountState}
                 abi={abi}
-                onChangeAbi={newAbi => {
-                  setAbi(prevAbi => {
-                    if (prevAbi != null) {
-                      for (const item of prevAbi.functionHandlers) {
-                        item.handler.free();
-                      }
-                      prevAbi.functionHandlers.splice(0, prevAbi.functionHandlers.length);
-                    }
-                    return newAbi;
-                  });
-                }}
               />
             )}
           </div>

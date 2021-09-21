@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import ton, { ContractState, Permissions, Transaction, TransactionId, AbiParam } from 'ton-inpage-provider';
-import { checkAddress, convertFromTons } from '../../common';
+import ton, { ContractState, Permissions, AbiParam } from 'ton-inpage-provider';
+import { convertFromTons } from '../../common';
 import classNames from 'classnames';
 
 import * as core from '../../../core/pkg';
 import { FunctionInput } from './FunctionInput';
 
+const DEFAULT_ABI_NAME = 'abi1';
 const BLOB_PART = /\/blob\//;
 const convertGithubLink = (address: URL) => {
   if (address.origin != 'https://github.com' || !address.pathname.endsWith('.abi.json')) {
@@ -13,6 +14,10 @@ const convertGithubLink = (address: URL) => {
   }
   return new URL(`https://raw.githubusercontent.com${address.pathname.replace(BLOB_PART, '/')}`);
 };
+
+const getAllAbi = () => Object.keys(localStorage).map(name => ({ name, abi: localStorage.getItem(name) }));
+
+let abiItems = getAllAbi();
 
 export type ParsedAbi = {
   abi: string;
@@ -38,21 +43,80 @@ type AbiFormProps = {
   onChangeAbi: (abi: ParsedAbi) => void;
 };
 
-const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi }) => {
+export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi }) => {
   const [localInProgress, setLocalInProgress] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [loadAbiType, setLoadAbiType] = useState(LoadAbiType.FROM_TEXT);
   const [value, setValue] = useState<string>('');
+  const [abiName, setAbiName] = useState<string>(DEFAULT_ABI_NAME);
   const [file, setFile] = useState<File>();
   const [error, setError] = useState<string>();
+  const [abiSelectorVisible, setAbiSelectorVisible] = useState(false);
+  const [selectedAbi, setSelectedAbi] = useState<string>();
+  const [abiListVersion, setAbiListVersion] = useState(0);
 
   const openModal = (type: LoadAbiType) => () => {
     setValue('');
+    setAbiName(DEFAULT_ABI_NAME);
     setFile(undefined);
     setLoadAbiType(type);
     setModalVisible(true);
   };
   const hideModal = () => setModalVisible(false);
+
+  const changeAbi = (abiName: string, text: string) => {
+    const { functionHandlers, functionNames, eventNames } = core.validateContractAbi(text);
+
+    const currentAbiName = abiName;
+
+    setModalVisible(false);
+    setValue('');
+    setAbiName(DEFAULT_ABI_NAME);
+    setFile(undefined);
+    setLoadAbiType(LoadAbiType.FROM_TEXT);
+
+    const data = JSON.parse(text);
+    const functions = data.functions.reduce((functions: any, item: any) => {
+      functions[item.name] = { inputs: item.inputs || [], outputs: item.outputs || [] };
+      return functions;
+    }, {});
+    const events = data.events.reduce((events: any, item: any) => {
+      events[item.name] = { inputs: item.inputs || [] };
+      return events;
+    }, {});
+
+    localStorage.setItem(currentAbiName, text);
+    abiItems = getAllAbi();
+    setAbiSelectorVisible(false);
+    setSelectedAbi(currentAbiName);
+
+    onChangeAbi({
+      abi: text,
+      data: JSON.parse(text),
+      functionHandlers: functionHandlers.map(handler => ({ abi: handler.data, handler })),
+      functions,
+      functionNames,
+      events,
+      eventNames
+    });
+  };
+
+  const onSelectAbi = (name: string) => () => {
+    setError(undefined);
+    const text = localStorage.getItem(name);
+    if (text == null) {
+      console.log('Empty');
+      return;
+    }
+
+    try {
+      changeAbi(name, text);
+      setSelectedAbi(name);
+      setAbiSelectorVisible(false);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const onSubmit = () => {
     if (localInProgress) {
@@ -89,31 +153,8 @@ const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi }) => {
           break;
         }
       }
-      const { functionHandlers, functionNames, eventNames } = core.validateContractAbi(text);
-      setModalVisible(false);
-      setValue('');
-      setFile(undefined);
-      setLoadAbiType(LoadAbiType.FROM_TEXT);
 
-      const data = JSON.parse(text);
-      const functions = data.functions.reduce((functions: any, item: any) => {
-        functions[item.name] = { inputs: item.inputs || [], outputs: item.outputs || [] };
-        return functions;
-      }, {});
-      const events = data.events.reduce((events: any, item: any) => {
-        events[item.name] = { inputs: item.inputs || [] };
-        return events;
-      }, {});
-
-      onChangeAbi({
-        abi: text,
-        data: JSON.parse(text),
-        functionHandlers: functionHandlers.map(handler => ({ abi: handler.data, handler })),
-        functions,
-        functionNames,
-        events,
-        eventNames
-      });
+      changeAbi(abiName, text);
     })()
       .catch(e => {
         setError(e.toString());
@@ -133,6 +174,22 @@ const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi }) => {
             <button className="delete" aria-label="close" onClick={hideModal} />
           </header>
           <section className="modal-card-body">
+            <div className="field">
+              <label className="label">ABI name:</label>
+              <div className="control">
+                <input
+                  className="input"
+                  type="text"
+                  value={abiName}
+                  spellCheck={false}
+                  disabled={inProgress}
+                  onChange={e => {
+                    setAbiName(e.target.value);
+                  }}
+                />
+              </div>
+              {error != null && <p className="help is-danger">{error}</p>}
+            </div>
             {loadAbiType == LoadAbiType.FROM_FILE && (
               <>
                 <div className="file">
@@ -228,6 +285,51 @@ const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi }) => {
             From link
           </button>
         </div>
+        {abiItems.length > 0 && (
+          <div className={classNames('dropdown', { 'is-active': abiSelectorVisible })}>
+            <div className="dropdown-trigger">
+              <button
+                className="button"
+                aria-haspopup="true"
+                aria-controls="select-abi-dropdown"
+                onClick={() => setAbiSelectorVisible(!abiSelectorVisible)}
+                onBlur={() => setAbiSelectorVisible(false)}
+              >
+                <span>{selectedAbi == null ? 'Select ABI...' : selectedAbi}</span>
+                <span className="icon is-small">
+                  <i
+                    className={classNames('fas', {
+                      'fa-angle-down': !abiSelectorVisible,
+                      'fa-angle-up': abiSelectorVisible
+                    })}
+                    aria-hidden="true"
+                  />
+                </span>
+              </button>
+            </div>
+            <div key={abiListVersion} className="dropdown-menu" id="select-abi-dropdown" role="menu">
+              <div className="dropdown-content">
+                {abiItems.map(({ name }) => (
+                  <a
+                    key={name}
+                    className="dropdown-item is-flex is-align-items-center pr-4"
+                    onMouseDown={onSelectAbi(name)}
+                  >
+                    <span className="mr-5">{name}</span>
+                    <button
+                      className="delete is-small ml-auto"
+                      onMouseDown={() => {
+                        localStorage.removeItem(name);
+                        abiItems = getAllAbi();
+                        setAbiListVersion(abiListVersion + 1);
+                      }}
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -395,17 +497,14 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
 export type ExecutorProps = {
   version: number;
   wallet: Permissions['accountInteraction'];
-  inProgress: boolean;
   address?: string;
   state?: ContractState;
   abi?: ParsedAbi;
-  onChangeAbi: (abi: ParsedAbi) => void;
 };
 
-export const Executor: React.FC<ExecutorProps> = ({ version, wallet, inProgress, address, abi, onChangeAbi }) => {
+export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, abi }) => {
   return (
     <>
-      <AbiForm inProgress={inProgress} onChangeAbi={onChangeAbi} />
       {abi != null && address != null && (
         <div className="block">
           {abi.functionHandlers.map(({ abi: functionAbi, handler }, i) => {
