@@ -5,6 +5,28 @@ import { Address } from 'ton-inpage-provider';
 import { convertAddress, convertTons } from '../../common';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 
+type NavbarItemProps = {
+  path: string;
+};
+
+const NavbarItem: React.FC<NavbarItemProps> = ({ path, children }) => {
+  const { pathname } = useLocation();
+  const isActive = path == pathname;
+
+  return (
+    <Link
+      className={classNames({
+        'navbar-item': true,
+        'is-active': isActive,
+        'is-primary': isActive
+      })}
+      to={path}
+    >
+      {children}
+    </Link>
+  );
+};
+
 export type NavbarProps = {
   hasTonProvider: boolean;
   walletAddress?: Address;
@@ -22,17 +44,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onConnect,
   onDisconnect
 }) => {
-  const { pathname } = useLocation();
-
-  const itemClassName = (path: string) => {
-    const isActive = path == pathname;
-    return classNames({
-      'navbar-item': true,
-      'is-active': isActive,
-      'is-primary': isActive
-    });
-  };
-
   return (
     <nav className="navbar is-spaced" role="navigation" aria-label="main navigation">
       <div className="navbar-brand">
@@ -43,17 +54,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       <div id="navbarBasicExample" className="navbar-menu">
         <div className="navbar-start">
-          <Link className={itemClassName('/executor')} to="/executor">
-            Executor
-          </Link>
-          <Link className={itemClassName('/visualizer')} to="/visualizer">
-            Visualizer
-          </Link>
-          <Link className={itemClassName('/serializer')} to="/serializer">
-            Serializer
-          </Link>
+          <NavbarItem path="/executor">Executor</NavbarItem>
+          <NavbarItem path="/visualizer">Visualizer</NavbarItem>
+          <NavbarItem path="/serializer">Serializer</NavbarItem>
+          <NavbarItem path="/signer">Signer</NavbarItem>
         </div>
-
         <div className="navbar-end">
           <div className="navbar-item">
             <div className="buttons">

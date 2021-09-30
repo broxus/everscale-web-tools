@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import ton, { Permissions, Subscriber } from 'ton-inpage-provider';
-import { BrowserRouter as Router, Switch, Route, Redirect, useHistory, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Switch, Route, Redirect } from 'react-router-dom';
 import { Mutex } from '@broxus/await-semaphore';
 
 import './styles/main.scss';
@@ -13,6 +13,7 @@ import { Navbar } from './components/Navbar';
 import { ExecutorWorkspace } from './components/ExecutorWorkspace';
 import { VisualizerWorkspace } from './components/VisualizerWorkspace';
 import { SerializerWorkspace } from './components/SerializerWorkspace';
+import { SignerWorkspace } from './components/SignerWorkspace';
 
 const connectToWallet = async () => {
   await ton.requestPermissions({
@@ -88,6 +89,19 @@ const App: React.FC = () => {
     }
   };
 
+  const signData = async (data: string) => {
+    if (walletAccount?.publicKey == null) {
+      throw new Error('Account not selected');
+    }
+
+    return await walletMutex.use(async () =>
+      ton.signData({
+        data: btoa(data),
+        publicKey: walletAccount?.publicKey
+      })
+    );
+  };
+
   return (
     <>
       <Navbar
@@ -111,13 +125,16 @@ const App: React.FC = () => {
         <Route key="serializer" exact path="/serializer">
           <SerializerWorkspace />
         </Route>
+        <Route key="signer" exact path="/signer">
+          <SignerWorkspace signData={signData} />
+        </Route>
       </Switch>
     </>
   );
 };
 
 (async () => {
-  await init('index_bg.wasm');
+  await init();
 
   ReactDOM.render(
     <React.StrictMode>

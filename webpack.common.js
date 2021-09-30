@@ -41,6 +41,20 @@ module.exports = {
         ]
       },
       {
+        test: /\.wasm$/,
+        type: 'javascript/auto',
+        use: [
+          {
+            loader: 'file-loader',
+            options: {
+              name: '[name].[hash].[ext]',
+              outputPath: 'wasm/',
+              esModule: false
+            }
+          }
+        ]
+      },
+      {
         test: /\.(png|jpe?g|gif|webmanifest)$/i,
         use: [
           {
@@ -67,10 +81,7 @@ module.exports = {
       crateDirectory: path.resolve(__dirname, 'core')
     }),
     new CopyWebpackPlugin({
-      patterns: [
-        { from: path.resolve(__dirname, 'core/pkg/index_bg.wasm') },
-        { from: path.resolve(__dirname, 'public/manifest'), to: outputPath }
-      ]
+      patterns: [{ from: path.resolve(__dirname, 'public/manifest'), to: outputPath }]
     })
   ],
   output: {

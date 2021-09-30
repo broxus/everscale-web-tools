@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ton, { ContractState, Permissions, AbiParam } from 'ton-inpage-provider';
-import { convertFromTons } from '../../common';
+import { convertError, convertFromTons } from '../../common';
 import classNames from 'classnames';
 
 import * as core from '../../../core/pkg';
@@ -157,7 +157,7 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi }) => 
       changeAbi(abiName, text);
     })()
       .catch(e => {
-        setError(e.toString());
+        setError(convertError(e));
       })
       .finally(() => {
         setLocalInProgress(false);
@@ -350,6 +350,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
   const [error, setError] = useState<string>();
   const [attached, setAttached] = useState<string>('1');
   const [bounce, setBounce] = useState<boolean>(false);
+  const [withSignature, setWithSignature] = useState<boolean>(true);
 
   useEffect(() => {
     setValues(handler.makeDefaultState());
@@ -373,7 +374,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
       setOutput(output);
     })()
       .catch(e => {
-        setError(e.toString());
+        setError(convertError(e));
       })
       .finally(() => {
         setInProgress(false);
@@ -387,20 +388,25 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
     setError(undefined);
     setInProgress(true);
 
+    const args = {
+      publicKey: wallet.publicKey,
+      recipient: address,
+      payload: {
+        abi: contractAbi.abi,
+        method: handler.functionName,
+        params: handler.makeTokensObject(values)
+      }
+    };
+
     (async () => {
-      const output = await ton.rawApi.sendExternalMessage({
-        publicKey: wallet.publicKey,
-        recipient: address,
-        payload: {
-          abi: contractAbi.abi,
-          method: handler.functionName,
-          params: handler.makeTokensObject(values)
-        }
-      });
-      setOutput(output);
+      if (withSignature) {
+        setOutput(await ton.rawApi.sendExternalMessage(args));
+      } else {
+        setOutput(await ton.rawApi.sendUnsignedExternalMessage(args));
+      }
     })()
       .catch(e => {
-        setError(e.toString());
+        setError(convertError(e));
       })
       .finally(() => {
         setInProgress(false);
@@ -428,7 +434,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
       setOutput(output);
     })()
       .catch(e => {
-        setError(e.toString());
+        setError(convertError(e));
       })
       .finally(() => {
         setInProgress(false);
@@ -454,9 +460,22 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
         <button className="button is-success" onClick={runLocal} disabled={inProgress}>
           Run local
         </button>
-        <button className="button is-success" onClick={sendExternal} disabled={inProgress}>
-          Send external
-        </button>
+
+        <div className="field mb-0 mr-2 has-addons">
+          <div className="control is-unselectable">
+            <button className="button" disabled={inProgress} onClick={() => setWithSignature(!withSignature)}>
+              <label className="checkbox">
+                <input type="checkbox" disabled={inProgress} checked={withSignature} />
+              </label>
+              &nbsp;With signature
+            </button>
+          </div>
+          <div className="control">
+            <button className="button is-success" onClick={sendExternal} disabled={inProgress}>
+              Send external
+            </button>
+          </div>
+        </div>
 
         <div className="field mb-0 mr-2 has-addons">
           <div className="control">
@@ -471,9 +490,12 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
               disabled={inProgress}
             />
           </div>
-          <div className="control">
+          <div className="control is-unselectable">
             <button className="button" disabled={inProgress} onClick={() => setBounce(!bounce)}>
-              {bounce ? 'Bounce' : "Don't bounce"}
+              <label className="checkbox">
+                <input type="checkbox" disabled={inProgress} checked={bounce} />
+              </label>
+              &nbsp;Bounce
             </button>
           </div>
           <div className="control">

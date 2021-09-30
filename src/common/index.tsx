@@ -24,3 +24,11 @@ export const accountExplorerLink = (address: Address) => `https://tonscan.io/acc
 export const convertDate = (timestamp: number) => {
   return moment(timestamp * 1000).format('YYYY-MM-DD HH:mm:ss');
 };
+
+export const convertError = (error: any) => {
+  if (typeof error.message === 'string') {
+    return error.message;
+  } else {
+    return error.toString();
+  }
+};
