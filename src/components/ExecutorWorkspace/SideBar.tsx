@@ -127,7 +127,7 @@ const TransactionItem: React.FC<TransactionProps> = ({ transaction }) => {
               </div>
             )}
 
-            {transaction.resultCode != null && (
+            {transaction.resultCode != null && transaction.resultCode != 0 && (
               <div className="control">
                 <div className="tags has-addons">
                   <span className="tag is-dark">result code</span>
