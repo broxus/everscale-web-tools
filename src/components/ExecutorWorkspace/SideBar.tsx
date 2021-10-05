@@ -127,6 +127,15 @@ const TransactionItem: React.FC<TransactionProps> = ({ transaction }) => {
               </div>
             )}
 
+            {transaction.resultCode != null && (
+              <div className="control">
+                <div className="tags has-addons">
+                  <span className="tag is-dark">result code</span>
+                  <span className="tag is-info">{transaction.resultCode}</span>
+                </div>
+              </div>
+            )}
+
             <a href={transactionExplorerLink(transaction.id.hash)} target="_blank" className="tag is-link">
               {convertHash(transaction.id.hash)}
               &nbsp;

@@ -96,7 +96,11 @@ const App: React.FC = () => {
 
     return await walletMutex.use(async () =>
       ton.signData({
-        data: btoa(data),
+        data: btoa(
+          encodeURIComponent(data).replace(/%([0-9A-F]{2})/g, function toSolidBytes(_match, p1: any) {
+            return String.fromCharCode(('0x' + p1) as any);
+          })
+        ),
         publicKey: walletAccount?.publicKey
       })
     );
