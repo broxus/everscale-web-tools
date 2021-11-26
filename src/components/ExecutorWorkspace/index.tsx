@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import ton, {
+import {
   Permissions,
   Subscriber,
   ContractState,
@@ -14,6 +14,7 @@ import ton, {
 import { Mutex } from '@broxus/await-semaphore';
 import { SideBar } from './SideBar';
 import { AbiForm, Executor, ParsedAbi } from './Executor';
+import { ton } from '../../';
 
 type ExecutorWorkspaceProps = {
   hasTonProvider: boolean;
@@ -38,8 +39,8 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
   };
 
   const invalidateAbi = () => {
-    setAbiVersion(abiVersion + 1)
-  }
+    setAbiVersion(abiVersion + 1);
+  };
 
   const handleTransactions = ({ transactions, info }: { transactions: Transaction[]; info: TransactionsBatchInfo }) => {
     if (transactions.length == 0) {
@@ -206,18 +207,21 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
             />
           </div>
           <div className="column is-8">
-            <AbiForm inProgress={inProgress} onChangeAbi={newAbi => {
-              setAbi(prevAbi => {
-                if (prevAbi != null) {
-                  for (const item of prevAbi.functionHandlers) {
-                    item.handler.free();
+            <AbiForm
+              inProgress={inProgress}
+              onChangeAbi={newAbi => {
+                setAbi(prevAbi => {
+                  if (prevAbi != null) {
+                    for (const item of prevAbi.functionHandlers) {
+                      item.handler.free();
+                    }
+                    prevAbi.functionHandlers.splice(0, prevAbi.functionHandlers.length);
                   }
-                  prevAbi.functionHandlers.splice(0, prevAbi.functionHandlers.length);
-                }
-                invalidateAbi();
-                return newAbi;
-              });
-            }} />
+                  invalidateAbi();
+                  return newAbi;
+                });
+              }}
+            />
 
             {accountState != null && (
               <Executor

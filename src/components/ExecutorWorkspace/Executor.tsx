@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import ton, { ContractState, Permissions, AbiParam } from 'ton-inpage-provider';
+import { ContractState, Permissions, AbiParam } from 'ton-inpage-provider';
 import { convertError, convertFromTons } from '../../common';
 import classNames from 'classnames';
 
 import * as core from '../../../core/pkg';
 import { FunctionInput } from './FunctionInput';
+import { ton } from '../../';
 
 const DEFAULT_ABI_NAME = 'abi1';
 const BLOB_PART = /\/blob\//;
@@ -465,7 +466,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
           <div className="control is-unselectable">
             <button className="button" disabled={inProgress} onClick={() => setWithSignature(!withSignature)}>
               <label className="checkbox">
-                <input type="checkbox" disabled={inProgress} checked={withSignature} />
+                <input type="checkbox" disabled={inProgress} checked={withSignature} onChange={() => {}} />
               </label>
               &nbsp;With signature
             </button>
@@ -493,7 +494,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
           <div className="control is-unselectable">
             <button className="button" disabled={inProgress} onClick={() => setBounce(!bounce)}>
               <label className="checkbox">
-                <input type="checkbox" disabled={inProgress} checked={bounce} />
+                <input type="checkbox" disabled={inProgress} checked={bounce} onChange={() => {}} />
               </label>
               &nbsp;Bounce
             </button>

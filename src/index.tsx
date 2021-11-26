@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import ton, { Permissions, Subscriber } from 'ton-inpage-provider';
+import { Permissions, ProviderRpcClient, Subscriber } from 'ton-inpage-provider';
 import { BrowserRouter as Router, Switch, Route, Redirect } from 'react-router-dom';
 import { Mutex } from '@broxus/await-semaphore';
 
@@ -14,6 +14,8 @@ import { ExecutorWorkspace } from './components/ExecutorWorkspace';
 import { VisualizerWorkspace } from './components/VisualizerWorkspace';
 import { SerializerWorkspace } from './components/SerializerWorkspace';
 import { SignerWorkspace } from './components/SignerWorkspace';
+
+export const ton = new ProviderRpcClient();
 
 const connectToWallet = async () => {
   await ton.requestPermissions({
