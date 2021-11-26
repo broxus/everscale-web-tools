@@ -33,6 +33,7 @@ export type NavbarProps = {
   walletBalance?: string;
   isConnecting: boolean;
   onConnect: () => void;
+  onChangeAccount: () => void;
   onDisconnect: () => void;
 };
 
@@ -42,6 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   walletBalance,
   isConnecting,
   onConnect,
+  onChangeAccount,
   onDisconnect
 }) => {
   return (
@@ -82,6 +84,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <CopyToClipboard text={walletAddress.toString()}>
                           <button className="button is-light">{convertAddress(walletAddress.toString())}</button>
                         </CopyToClipboard>
+                      </div>
+                      <div className="control">
+                        <button
+                          className={classNames('button', { 'is-loading': isConnecting })}
+                          onClick={onChangeAccount}
+                        >
+                          <span className="icon">
+                            <i className="fas fa-sync-alt" />
+                          </span>
+                        </button>
                       </div>
                       <div className="control">
                         <button className={classNames('button', { 'is-loading': isConnecting })} onClick={onDisconnect}>

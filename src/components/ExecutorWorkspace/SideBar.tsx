@@ -35,7 +35,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ inProgress, currentAddress, o
             spellCheck={false}
             disabled={inProgress}
             onChange={event => {
-              setAddress(event.target.value);
+              setAddress(event.target.value.trim());
             }}
           />
           <p className="help">Contract address</p>

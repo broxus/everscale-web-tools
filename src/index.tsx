@@ -23,6 +23,10 @@ const connectToWallet = async () => {
   });
 };
 
+const changeAccount = async () => {
+  await ton.changeAccount();
+};
+
 const disconnectFromWallet = async () => {
   await ton.disconnect();
 };
@@ -116,6 +120,7 @@ const App: React.FC = () => {
         walletBalance={walletBalance}
         isConnecting={isConnecting}
         onConnect={onConnect}
+        onChangeAccount={changeAccount}
         onDisconnect={disconnectFromWallet}
       />
       <Switch>
