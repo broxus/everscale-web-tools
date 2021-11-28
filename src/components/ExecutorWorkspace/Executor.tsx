@@ -593,6 +593,14 @@ export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, ab
 
   const searchQuery = query.toLowerCase().trim();
 
+  let totalVisible = 0;
+  const visible =
+    abi?.functionHandlers.map(({ handler }) => {
+      const visible = searchQuery == '' || handler.functionName.toLowerCase().indexOf(searchQuery) >= 0;
+      totalVisible += ~~visible;
+      return visible;
+    }) || [];
+
   return (
     <>
       {abi != null && address != null && (
@@ -607,8 +615,8 @@ export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, ab
                 contractAbi={abi}
                 functionAbi={functionAbi}
                 handler={handler}
-                visible={searchQuery == '' || handler.functionName.toLowerCase().indexOf(searchQuery) >= 0}
-                collapsed={collapsed?.[i] || false}
+                visible={visible[i]}
+                collapsed={totalVisible > 1 && (collapsed?.[i] || false)}
                 onToggleCollapse={() => {
                   if (collapsed != null) {
                     collapsed[i] = !collapsed[i];
