@@ -547,7 +547,7 @@ type FunctionSearchProps = {
   onChange: (query: string) => void;
 };
 
-const FunctionSearch: React.FC<FunctionSearchProps> = ({ query, onChange }) => {
+const FunctionSearch = React.forwardRef<HTMLInputElement, FunctionSearchProps>(({ query, onChange }, ref) => {
   return (
     <div className="box field has-addons function-search pb-3">
       <div className="control is-expanded">
@@ -556,6 +556,7 @@ const FunctionSearch: React.FC<FunctionSearchProps> = ({ query, onChange }) => {
           type="text"
           value={query}
           spellCheck={false}
+          ref={ref}
           onChange={event => {
             onChange(event.target.value.trim());
           }}
@@ -569,7 +570,7 @@ const FunctionSearch: React.FC<FunctionSearchProps> = ({ query, onChange }) => {
       </div>
     </div>
   );
-};
+});
 
 export type ExecutorProps = {
   version: number;
@@ -582,6 +583,21 @@ export type ExecutorProps = {
 export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, abi }) => {
   const [collapsed, setCollapsed] = useState<Array<boolean>>();
   const [query, setQuery] = useState<string>('');
+
+  const searchFieldRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const escFunction = (event: KeyboardEvent) => {
+      if (event.keyCode === 27) {
+        searchFieldRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', escFunction, false);
+    return () => {
+      document.removeEventListener('keydown', escFunction, false);
+    };
+  }, []);
 
   useEffect(() => {
     if (abi == null) {
@@ -605,7 +621,7 @@ export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, ab
     <>
       {abi != null && address != null && (
         <div className="block">
-          <FunctionSearch query={query} onChange={setQuery} />
+          <FunctionSearch ref={searchFieldRef} query={query} onChange={setQuery} />
           {abi.functionHandlers.map(({ abi: functionAbi, handler }, i) => {
             return (
               <FunctionItem
