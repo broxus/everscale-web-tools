@@ -343,7 +343,8 @@ type FunctinItemProps = {
   functionAbi: core.AbiParam[];
   handler: core.AbiFunctionHandler;
   visible: boolean;
-  onToggleVisibility: () => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 };
 
 const FunctionItem: React.FC<FunctinItemProps> = ({
@@ -353,7 +354,8 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
   functionAbi,
   handler,
   visible,
-  onToggleVisibility
+  collapsed,
+  onToggleCollapse
 }) => {
   const [values, setValues] = useState<core.AbiValue[]>([]);
   const [inProgress, setInProgress] = useState(false);
@@ -453,20 +455,20 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
   };
 
   return (
-    <div className="function-item box">
-      <label className={classNames('label', { 'mb-0': !visible })} onClick={onToggleVisibility}>
+    <div className={classNames('function-item box', { 'is-hidden': !visible })}>
+      <label className={classNames('label', { 'mb-0': collapsed })} onClick={onToggleCollapse}>
         <span className="icon" style={{ cursor: 'pointer' }}>
           <i
             className={classNames('fa', {
-              'fa-chevron-right': !visible,
-              'fa-chevron-down': visible
+              'fa-chevron-right': collapsed,
+              'fa-chevron-down': !collapsed
             })}
           />
         </span>
         <span className="function-name">{handler.functionName}</span>
       </label>
 
-      <div className={classNames({ 'is-hidden': !visible })}>
+      <div className={classNames({ 'is-hidden': collapsed })}>
         <div className="field">
           <p className="help is-family-monospace">
             input_id: {handler.inputId}
@@ -540,6 +542,35 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
   );
 };
 
+type FunctionSearchProps = {
+  query?: string;
+  onChange: (query: string) => void;
+};
+
+const FunctionSearch: React.FC<FunctionSearchProps> = ({ query, onChange }) => {
+  return (
+    <div className="box field has-addons function-search pb-3">
+      <div className="control is-expanded">
+        <input
+          className="input"
+          type="text"
+          value={query}
+          spellCheck={false}
+          onChange={event => {
+            onChange(event.target.value.trim());
+          }}
+        />
+        <p className="help">Function name</p>
+      </div>
+      <div className="control">
+        <button className="button" onClick={() => onChange('')}>
+          Clear
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export type ExecutorProps = {
   version: number;
   wallet: Permissions['accountInteraction'];
@@ -549,20 +580,24 @@ export type ExecutorProps = {
 };
 
 export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, abi }) => {
-  const [openStates, setOpenStates] = useState<Array<boolean>>();
+  const [collapsed, setCollapsed] = useState<Array<boolean>>();
+  const [query, setQuery] = useState<string>('');
 
   useEffect(() => {
     if (abi == null) {
-      setOpenStates(undefined);
+      setCollapsed(undefined);
       return;
     }
-    setOpenStates(new Array(abi.functionHandlers.length).fill(false));
+    setCollapsed(new Array(abi.functionHandlers.length).fill(true));
   }, [abi]);
+
+  const searchQuery = query.toLowerCase().trim();
 
   return (
     <>
       {abi != null && address != null && (
         <div className="block">
+          <FunctionSearch query={query} onChange={setQuery} />
           {abi.functionHandlers.map(({ abi: functionAbi, handler }, i) => {
             return (
               <FunctionItem
@@ -572,12 +607,12 @@ export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, ab
                 contractAbi={abi}
                 functionAbi={functionAbi}
                 handler={handler}
-                visible={openStates?.[i] || false}
-                onToggleVisibility={() => {
-                  console.log(openStates);
-                  if (openStates != null) {
-                    openStates[i] = !openStates[i];
-                    setOpenStates([...openStates]);
+                visible={searchQuery == '' || handler.functionName.toLowerCase().indexOf(searchQuery) >= 0}
+                collapsed={collapsed?.[i] || false}
+                onToggleCollapse={() => {
+                  if (collapsed != null) {
+                    collapsed[i] = !collapsed[i];
+                    setCollapsed([...collapsed]);
                   }
                 }}
               />
