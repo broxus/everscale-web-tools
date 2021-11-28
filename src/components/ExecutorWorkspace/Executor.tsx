@@ -342,9 +342,19 @@ type FunctinItemProps = {
   contractAbi: ParsedAbi;
   functionAbi: core.AbiParam[];
   handler: core.AbiFunctionHandler;
+  visible: boolean;
+  onToggleVisibility: () => void;
 };
 
-const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi, functionAbi, handler }) => {
+const FunctionItem: React.FC<FunctinItemProps> = ({
+  wallet,
+  address,
+  contractAbi,
+  functionAbi,
+  handler,
+  visible,
+  onToggleVisibility
+}) => {
   const [values, setValues] = useState<core.AbiValue[]>([]);
   const [inProgress, setInProgress] = useState(false);
   const [output, setOutput] = useState<any>();
@@ -443,76 +453,89 @@ const FunctionItem: React.FC<FunctinItemProps> = ({ wallet, address, contractAbi
   };
 
   return (
-    <div className="box">
-      <div className="field">
-        <label className="label">{handler.functionName}</label>
-        <p className="help is-family-monospace">
-          input_id: {handler.inputId}
-          <br />
-          output_id: {handler.outputId}
-        </p>
-        <div className="divider mt-1 mb-1">inputs:</div>
-        <div className="control">
-          <FunctionInput abi={functionAbi} handler={handler} values={values} onChange={setValues} />
+    <div className="function-item box">
+      <label className={classNames('label', { 'mb-0': !visible })} onClick={onToggleVisibility}>
+        <span className="icon" style={{ cursor: 'pointer' }}>
+          <i
+            className={classNames('fa', {
+              'fa-chevron-right': !visible,
+              'fa-chevron-down': visible
+            })}
+          />
+        </span>
+        <span className="function-name">{handler.functionName}</span>
+      </label>
+
+      <div className={classNames({ 'is-hidden': !visible })}>
+        <div className="field">
+          <p className="help is-family-monospace">
+            input_id: {handler.inputId}
+            <br />
+            output_id: {handler.outputId}
+          </p>
+          {functionAbi.length > 0 && <div className="divider mt-1 mb-1">inputs:</div>}
+          <div className="control">
+            <FunctionInput abi={functionAbi} handler={handler} values={values} onChange={setValues} />
+          </div>
         </div>
+
+        <div className="buttons">
+          <button className="button is-success" onClick={runLocal} disabled={inProgress}>
+            Run local
+          </button>
+
+          <div className="field mb-0 mr-2 has-addons">
+            <div className="control is-unselectable">
+              <button className="button" disabled={inProgress} onClick={() => setWithSignature(!withSignature)}>
+                <label className="checkbox">
+                  <input type="checkbox" disabled={inProgress} checked={withSignature} onChange={() => {}} />
+                </label>
+                &nbsp;With signature
+              </button>
+            </div>
+            <div className="control">
+              <button className="button is-success" onClick={sendExternal} disabled={inProgress}>
+                Send external
+              </button>
+            </div>
+          </div>
+
+          <div className="field mb-0 mr-2 has-addons">
+            <div className="control">
+              <input
+                className="input"
+                type="text"
+                placeholder="Amount fo TON"
+                value={attached}
+                onChange={e => {
+                  setAttached(e.target.value);
+                }}
+                disabled={inProgress}
+              />
+            </div>
+            <div className="control is-unselectable">
+              <button className="button" disabled={inProgress} onClick={() => setBounce(!bounce)}>
+                <label className="checkbox">
+                  <input type="checkbox" disabled={inProgress} checked={bounce} onChange={() => {}} />
+                </label>
+                &nbsp;Bounce
+              </button>
+            </div>
+            <div className="control">
+              <button className="button is-info" disabled={inProgress} onClick={sendInternal}>
+                Send
+              </button>
+            </div>
+          </div>
+          <button className="button" onClick={() => setOutput(undefined)} disabled={inProgress}>
+            Clear output
+          </button>
+        </div>
+
+        {(output != null || error != null) && <div className="divider mt-1 mb-1">output:</div>}
+        {output != null && <pre>{JSON.stringify(output, undefined, 2)}</pre>}
+        {error != null && <p className="help is-danger">{error}</p>}
       </div>
-
-      <div className="buttons">
-        <button className="button is-success" onClick={runLocal} disabled={inProgress}>
-          Run local
-        </button>
-
-        <div className="field mb-0 mr-2 has-addons">
-          <div className="control is-unselectable">
-            <button className="button" disabled={inProgress} onClick={() => setWithSignature(!withSignature)}>
-              <label className="checkbox">
-                <input type="checkbox" disabled={inProgress} checked={withSignature} onChange={() => {}} />
-              </label>
-              &nbsp;With signature
-            </button>
-          </div>
-          <div className="control">
-            <button className="button is-success" onClick={sendExternal} disabled={inProgress}>
-              Send external
-            </button>
-          </div>
-        </div>
-
-        <div className="field mb-0 mr-2 has-addons">
-          <div className="control">
-            <input
-              className="input"
-              type="text"
-              placeholder="Amount fo TON"
-              value={attached}
-              onChange={e => {
-                setAttached(e.target.value);
-              }}
-              disabled={inProgress}
-            />
-          </div>
-          <div className="control is-unselectable">
-            <button className="button" disabled={inProgress} onClick={() => setBounce(!bounce)}>
-              <label className="checkbox">
-                <input type="checkbox" disabled={inProgress} checked={bounce} onChange={() => {}} />
-              </label>
-              &nbsp;Bounce
-            </button>
-          </div>
-          <div className="control">
-            <button className="button is-info" disabled={inProgress} onClick={sendInternal}>
-              Send
-            </button>
-          </div>
-        </div>
-        <button className="button" onClick={() => setOutput(undefined)} disabled={inProgress}>
-          Clear output
-        </button>
-      </div>
-
-      {(output != null || error != null) && <div className="divider mt-1 mb-1">output:</div>}
-      {output != null && <pre>{JSON.stringify(output, undefined, 2)}</pre>}
-      {error != null && <p className="help is-danger">{error}</p>}
     </div>
   );
 };
@@ -526,6 +549,16 @@ export type ExecutorProps = {
 };
 
 export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, abi }) => {
+  const [openStates, setOpenStates] = useState<Array<boolean>>();
+
+  useEffect(() => {
+    if (abi == null) {
+      setOpenStates(undefined);
+      return;
+    }
+    setOpenStates(new Array(abi.functionHandlers.length).fill(false));
+  }, [abi]);
+
   return (
     <>
       {abi != null && address != null && (
@@ -539,6 +572,14 @@ export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, ab
                 contractAbi={abi}
                 functionAbi={functionAbi}
                 handler={handler}
+                visible={openStates?.[i] || false}
+                onToggleVisibility={() => {
+                  console.log(openStates);
+                  if (openStates != null) {
+                    openStates[i] = !openStates[i];
+                    setOpenStates([...openStates]);
+                  }
+                }}
               />
             );
           })}

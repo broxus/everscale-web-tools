@@ -1,0 +1,35 @@
+.executor-workspace {
+    .function-item {
+        & > label {
+            position: relative;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+
+            margin-bottom: 1em;
+
+            .icon {
+                position: absolute;
+
+                width: 2em;
+                height: 2em;
+
+                cursor: pointer;
+                background-color: whitesmoke;
+                border-radius: 6px;
+
+                &:hover {
+                    background-color: #eeeeee;
+                }
+
+                &:active {
+                    background-color: #e8e8e8;
+                }
+            }
+
+            .function-name {
+                margin-left: 2.5em;
+            }
+        }
+    }
+}

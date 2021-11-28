@@ -16,6 +16,8 @@ import { SideBar } from './SideBar';
 import { AbiForm, Executor, ParsedAbi } from './Executor';
 import { ton } from '../../';
 
+import './style.scss';
+
 type ExecutorWorkspaceProps = {
   hasTonProvider: boolean;
   walletAccount?: Permissions['accountInteraction'];
@@ -191,7 +193,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
   }
 
   return (
-    <section className="section">
+    <section className="section executor-workspace">
       <div className="container is-fluid">
         <div className="columns">
           <div className="column is-4">
