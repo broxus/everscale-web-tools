@@ -133,7 +133,7 @@ pub fn parse_abi(input: &str) -> Result<AbiEntityHandler, JsValue> {
                         });
 
                     Entity::Function(ton_abi::Function {
-                        abi_version: ton_abi::contract::ABI_VBERSION_2_1,
+                        abi_version: ton_abi::contract::ABI_VERSION_2_1,
                         name: function.name,
                         header: Vec::new(),
                         inputs: function.inputs,
@@ -182,9 +182,13 @@ pub fn encode_abi_entry(
         Entity::Empty => return encode_empty_cell(),
         Entity::Cell(inputs) => {
             let values = parse_abi_values(inputs, values).handle_error()?;
-            ton_abi::TokenValue::pack_values_into_chain(&values, Vec::new(), 2)
-                .handle_error()?
-                .into()
+            ton_abi::TokenValue::pack_values_into_chain(
+                &values,
+                Vec::new(),
+                &ton_abi::contract::ABI_VERSION_2_1,
+            )
+            .handle_error()?
+            .into()
         }
         Entity::Function(function) => {
             let values = parse_abi_values(&function.inputs, values).handle_error()?;
@@ -558,6 +562,7 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
         ton_abi::ParamType::Expire => ("uint", JsValue::from(u32::MAX.to_string())),
         ton_abi::ParamType::PublicKey => ("pubkey", JsValue::null()),
         ton_abi::ParamType::Optional(_) => ("optional", JsValue::null()),
+        ton_abi::ParamType::Ref(param) => return make_default_state(param),
     };
 
     ObjectBuilder::new()
@@ -703,13 +708,13 @@ export type EnumWrapper<K extends string, I> = { kind: K, info: I };
 export type AbiEntity =
   | EnumWrapper<'empty', null>
   | EnumWrapper<'plain', { tokens: Array<AbiParam> }>
-  | EnumWrapper<'function', { 
-      name: string, 
-      inputs: Array<AbiParam>, 
-      outputs: Array<AbiParam>, 
+  | EnumWrapper<'function', {
+      name: string,
+      inputs: Array<AbiParam>,
+      outputs: Array<AbiParam>,
       abiVersion: number,
       inputId: number,
-      outputId: number, 
+      outputId: number,
     }>
   | never;
 
@@ -874,6 +879,7 @@ fn serialize_param_type(param: &ton_abi::ParamType) -> JsValue {
         ton_abi::ParamType::Expire => ("expire", JsValue::null()),
         ton_abi::ParamType::PublicKey => ("publicKey", JsValue::null()),
         ton_abi::ParamType::Optional(param) => ("optional", serialize_param_type(param)),
+        ton_abi::ParamType::Ref(param) => ("ref", serialize_param_type(param)),
     };
 
     ObjectBuilder::new()
@@ -939,6 +945,7 @@ fn make_token_value(value: &ton_abi::TokenValue) -> Result<JsValue, JsValue> {
             Some(value) => make_token_value(value)?,
             None => JsValue::null(),
         },
+        ton_abi::TokenValue::Ref(value) => make_token_value(value)?,
     })
 }
 
@@ -951,7 +958,7 @@ export type AbiToken =
     | { [K in string]: AbiToken }
     | AbiToken[]
     | (readonly [AbiToken, AbiToken])[];
-    
+
 type TokensObject = { [K in string]: AbiToken };
 "#;
 
