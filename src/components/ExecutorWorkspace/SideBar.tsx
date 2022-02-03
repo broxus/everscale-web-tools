@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import classNames from 'classnames';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
-import { ContractState, Transaction, TransactionId } from 'ton-inpage-provider';
+import { ContractState, Transaction, TransactionId } from 'everscale-inpage-provider';
 import {
   convertAddress,
   convertTons,

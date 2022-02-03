@@ -1,7 +1,7 @@
 import React from 'react';
 import classNames from 'classnames';
 import { Link, useLocation } from 'react-router-dom';
-import { Address } from 'ton-inpage-provider';
+import { Address } from 'everscale-inpage-provider';
 import { convertAddress, convertTons } from '../../common';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 

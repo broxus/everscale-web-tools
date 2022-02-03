@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Permissions, ProviderRpcClient, Subscriber } from 'ton-inpage-provider';
+import { Permissions, ProviderRpcClient, Subscriber } from 'everscale-inpage-provider';
 import { BrowserRouter as Router, Switch, Route, Redirect } from 'react-router-dom';
 import { Mutex } from '@broxus/await-semaphore';
 
@@ -15,20 +15,20 @@ import { VisualizerWorkspace } from './components/VisualizerWorkspace';
 import { SerializerWorkspace } from './components/SerializerWorkspace';
 import { SignerWorkspace } from './components/SignerWorkspace';
 
-export const ton = new ProviderRpcClient();
+export const ever = new ProviderRpcClient();
 
 const connectToWallet = async () => {
-  await ton.requestPermissions({
-    permissions: ['tonClient', 'accountInteraction']
+  await ever.requestPermissions({
+    permissions: ['basic', 'accountInteraction']
   });
 };
 
 const changeAccount = async () => {
-  await ton.changeAccount();
+  await ever.changeAccount();
 };
 
 const disconnectFromWallet = async () => {
-  await ton.disconnect();
+  await ever.disconnect();
 };
 
 const walletMutex: Mutex = new Mutex();
@@ -47,8 +47,8 @@ const App: React.FC = () => {
 
     walletMutex
       .use(async () => {
-        walletSubscriber = ton.createSubscriber();
-        const { state } = await ton.getFullContractState({
+        walletSubscriber = ever.createSubscriber();
+        const { state } = await ever.getFullContractState({
           address: walletAccount.address
         });
 
@@ -70,15 +70,15 @@ const App: React.FC = () => {
   }, [walletAccount]);
 
   useEffect(() => {
-    ton.hasProvider().then(async hasTonProvider => {
+    ever.hasProvider().then(async hasTonProvider => {
       setHasTonProvider(hasTonProvider);
       if (hasTonProvider) {
-        await ton.ensureInitialized();
-        (await ton.subscribe('permissionsChanged')).on('data', event => {
+        await ever.ensureInitialized();
+        (await ever.subscribe('permissionsChanged')).on('data', event => {
           setWalletAccount(event.permissions.accountInteraction);
         });
 
-        const currentProviderState = await ton.getProviderState();
+        const currentProviderState = await ever.getProviderState();
         if (currentProviderState.permissions.accountInteraction != null) {
           await connectToWallet();
         }
@@ -101,7 +101,7 @@ const App: React.FC = () => {
     }
 
     return await walletMutex.use(async () =>
-      ton.signData({
+      ever.signData({
         data: btoa(
           encodeURIComponent(data).replace(/%([0-9A-F]{2})/g, function toSolidBytes(_match, p1: any) {
             return String.fromCharCode(('0x' + p1) as any);

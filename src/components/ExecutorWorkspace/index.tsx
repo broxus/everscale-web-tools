@@ -10,11 +10,11 @@ import {
   TransactionId,
   serializeTransaction,
   parseTokensObject
-} from 'ton-inpage-provider';
+} from 'everscale-inpage-provider';
 import { Mutex } from '@broxus/await-semaphore';
 import { SideBar } from './SideBar';
 import { AbiForm, Executor, ParsedAbi } from './Executor';
-import { ton } from '../../';
+import { ever } from '../../';
 
 import './style.scss';
 
@@ -64,7 +64,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
         setInProgress(true);
         const address = new Address(accountAddress);
 
-        const { transactions, info } = await ton.getTransactions({
+        const { transactions, info } = await ever.getTransactions({
           address,
           continuation
         });
@@ -89,7 +89,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
         await Promise.all(
           accountTransactions.map(async transaction => {
             try {
-              const functionData = await ton.rawApi.decodeTransaction({
+              const functionData = await ever.rawApi.decodeTransaction({
                 abi: abi.abi,
                 transaction: serializeTransaction(transaction),
                 method: abi.functionNames
@@ -105,7 +105,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
                 (transaction as any).parsedFunctionData = undefined;
               }
 
-              const { events } = await ton.rawApi.decodeTransactionEvents({
+              const { events } = await ever.rawApi.decodeTransactionEvents({
                 abi: abi.abi,
                 transaction: serializeTransaction(transaction)
               });
@@ -138,8 +138,8 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
         setInProgress(true);
         const address = new Address(accountAddress);
 
-        accountSubscriber = ton.createSubscriber();
-        const { state } = await ton.getFullContractState({
+        accountSubscriber = ever.createSubscriber();
+        const { state } = await ever.getFullContractState({
           address
         });
 
@@ -149,7 +149,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
         });
 
         if (state?.lastTransactionId != null) {
-          const { transactions, info } = await ton.getTransactions({
+          const { transactions, info } = await ever.getTransactions({
             address,
             continuation: {
               lt: state.lastTransactionId.lt,

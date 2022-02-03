@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ContractState, Permissions, AbiParam } from 'ton-inpage-provider';
+import { ContractState, Permissions, AbiParam } from 'everscale-inpage-provider';
 import { convertError, convertFromTons } from '../../common';
 import classNames from 'classnames';
 
 import * as core from '../../../core/pkg';
 import { FunctionInput } from './FunctionInput';
-import { ton } from '../../';
+import { ever } from '../../';
 
 const DEFAULT_ABI_NAME = 'abi1';
 const BLOB_PART = /\/blob\//;
@@ -376,7 +376,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
     setError(undefined);
     setInProgress(true);
     (async () => {
-      const output = await ton.rawApi.runLocal({
+      const output = await ever.rawApi.runLocal({
         address,
         functionCall: {
           abi: contractAbi.abi,
@@ -413,9 +413,9 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
 
     (async () => {
       if (withSignature) {
-        setOutput(await ton.rawApi.sendExternalMessage(args));
+        setOutput(await ever.rawApi.sendExternalMessage(args));
       } else {
-        setOutput(await ton.rawApi.sendUnsignedExternalMessage(args));
+        setOutput(await ever.rawApi.sendUnsignedExternalMessage(args));
       }
     })()
       .catch(e => {
@@ -433,7 +433,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
     setError(undefined);
     setInProgress(true);
     (async () => {
-      const output = await ton.rawApi.sendMessage({
+      const output = await ever.rawApi.sendMessage({
         sender: wallet.address.toString(),
         recipient: address,
         amount: convertFromTons(attached),

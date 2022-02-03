@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RawProviderApiResponse } from 'ton-inpage-provider';
+import { RawProviderApiResponse } from 'everscale-inpage-provider';
 import { convertError } from '../../common';
 
 export type SignerWorkspaceProps = {
