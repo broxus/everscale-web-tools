@@ -364,6 +364,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
   const [attached, setAttached] = useState<string>('1');
   const [bounce, setBounce] = useState<boolean>(false);
   const [withSignature, setWithSignature] = useState<boolean>(true);
+  const [responsible, setResponsible] = useState<boolean>(false);
 
   useEffect(() => {
     setValues(handler.makeDefaultState());
@@ -378,6 +379,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
     (async () => {
       const output = await ever.rawApi.runLocal({
         address,
+        responsible,
         functionCall: {
           abi: contractAbi.abi,
           method: handler.functionName,
@@ -482,9 +484,21 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
         </div>
 
         <div className="buttons">
-          <button className="button is-success" onClick={runLocal} disabled={inProgress}>
-            Run local
-          </button>
+          <div className="field mb-0 mr-2 has-addons">
+            <div className="control is-unselectable">
+              <button className="button" disabled={inProgress} onClick={() => setResponsible(!responsible)}>
+                <label className="checkbox">
+                  <input type="checkbox" disabled={inProgress} checked={responsible} onChange={() => {}} />
+                </label>
+                &nbsp;Responsible
+              </button>
+            </div>
+            <div className="control">
+              <button className="button is-success" onClick={runLocal} disabled={inProgress}>
+                Run local
+              </button>
+            </div>
+          </div>
 
           <div className="field mb-0 mr-2 has-addons">
             <div className="control is-unselectable">
