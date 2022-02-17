@@ -258,6 +258,10 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
 
                 ton_abi::TokenValue::Array(*param.clone(), result)
             }
+            (ton_abi::ParamType::Map(key, value), JsAbiValue::Map) => {
+                // TODO: add items
+                ton_abi::TokenValue::Map(*key.clone(), *value.clone(), Default::default())
+            }
             (ton_abi::ParamType::Address, JsAbiValue::Address(address)) => {
                 let value = match address {
                     ton_block::MsgAddressInt::AddrStd(addr) => ton_block::MsgAddress::AddrStd(addr),
@@ -546,7 +550,7 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
                 .collect::<js_sys::Array>()
                 .unchecked_into(),
         ),
-        ton_abi::ParamType::Map(_, _) => ("map", ObjectBuilder::new().build()),
+        ton_abi::ParamType::Map(_, _) => ("map", JsValue::undefined()),
         ton_abi::ParamType::Cell => ("cell", JsValue::from(encode_empty_cell().trust_me())),
         ton_abi::ParamType::Address => (
             "address",
@@ -670,6 +674,7 @@ enum JsAbiValue {
     Bool(bool),
     Tuple(Vec<JsAbiValue>),
     Array(Vec<JsAbiValue>),
+    Map,
     #[serde(deserialize_with = "serde_helpers::deserialize_cell")]
     Cell(Cell),
     #[serde(deserialize_with = "serde_helpers::deserialize_address")]

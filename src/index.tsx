@@ -47,7 +47,7 @@ const App: React.FC = () => {
 
     walletMutex
       .use(async () => {
-        walletSubscriber = ever.createSubscriber();
+        walletSubscriber = new ever.Subscriber();
         const { state } = await ever.getFullContractState({
           address: walletAccount.address
         });

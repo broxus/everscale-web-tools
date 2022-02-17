@@ -17,9 +17,35 @@ export const convertFromTons = (amount?: string) => new Decimal(amount || '0').m
 
 export const checkAddress = (address: string) => addressRegex.test(address);
 
-export const transactionExplorerLink = (hash: string) => `https://tonscan.io/transactions/${hash}`;
+export const transactionExplorerLink = (network: string, hash: string) => {
+  switch (network) {
+    case 'mainnet':
+      return `https://tonscan.io/transactions/${hash}`;
+    case 'testnet':
+      return `https://dev.tonscan.io/transactions/${hash}`;
+    case 'fld':
+      return `https://fld.ever.live/messages/messageDetails?id=${hash}`;
+    case 'localnet':
+      return `https://127.0.0.1/messages/messageDetails?id=${hash}`;
+    default:
+      return `https://tonscan.io/transactions/${hash}`;
+  }
+};
 
-export const accountExplorerLink = (address: Address) => `https://tonscan.io/accounts/${address.toString()}`;
+export const accountExplorerLink = (network: string, address: Address) => {
+  switch (network) {
+    case 'mainnet':
+      return `https://tonscan.io/accounts/${address.toString()}`;
+    case 'testnet':
+      return `https://dev.tonscan.io/accounts/${address.toString()}`;
+    case 'fld':
+      return `https://fld.ever.live/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
+    case 'localnet':
+      return `https://127.0.0.1/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
+    default:
+      return `https://tonscan.io/accounts/${address.toString()}`;
+  }
+};
 
 export const convertDate = (timestamp: number) => {
   return moment(timestamp * 1000).format('YYYY-MM-DD HH:mm:ss');

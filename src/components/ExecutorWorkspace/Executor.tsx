@@ -521,7 +521,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
               <input
                 className="input"
                 type="text"
-                placeholder="Amount fo TON"
+                placeholder="Amount for EVER"
                 value={attached}
                 onChange={e => {
                   setAttached(e.target.value);

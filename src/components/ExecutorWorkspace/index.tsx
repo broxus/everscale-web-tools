@@ -29,6 +29,7 @@ let accountTransactions: Transaction[] = [];
 
 export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProvider, walletAccount }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
+  const [networkGroup, setNetworkGroup] = useState<string>('mainnet');
   const [accountAddress, setAccountAddress] = useState<string>();
   const [accountState, setAccountState] = useState<ContractState>();
   const [transactionCount, setTransactionCount] = useState<number>(0);
@@ -138,7 +139,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
         setInProgress(true);
         const address = new Address(accountAddress);
 
-        accountSubscriber = ever.createSubscriber();
+        accountSubscriber = new ever.Subscriber();
         const { state } = await ever.getFullContractState({
           address
         });
@@ -200,6 +201,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProv
             <SideBar
               version={transactionVersion}
               inProgress={inProgress}
+              networkGroup={networkGroup}
               address={accountAddress}
               state={accountState}
               transactions={accountTransactions}

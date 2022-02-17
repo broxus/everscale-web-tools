@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import classNames from 'classnames';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
-import { ContractState, Transaction, TransactionId } from 'everscale-inpage-provider';
+import { Address, ContractState, Transaction, TransactionId } from 'everscale-inpage-provider';
 import {
   convertAddress,
   convertTons,
@@ -77,7 +77,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ address, state }) => {
         </div>
         {state != null && (
           <CopyToClipboard text={state.balance}>
-            <button className="button ml-1 is-white">{convertTons(state.balance)} TON</button>
+            <button className="button ml-1 is-white">{convertTons(state.balance)} EVER</button>
           </CopyToClipboard>
         )}
       </div>
@@ -86,19 +86,33 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ address, state }) => {
 };
 
 type TransactionProps = {
+  networkGroup: string;
   transaction: Transaction;
 };
 
-const TransactionItem: React.FC<TransactionProps> = ({ transaction }) => {
+const transformObject = (tokens: any) => {
+  if (tokens == null || typeof tokens !== 'object') {
+    return tokens;
+  }
+  if (tokens instanceof Address) {
+    return tokens.toString();
+  }
+  for (const [key, value] of Object.entries(tokens)) {
+    tokens[key] = transformObject(value);
+  }
+  return tokens;
+};
+
+const TransactionItem: React.FC<TransactionProps> = ({ networkGroup, transaction }) => {
   const inMsg = transaction.inMessage;
 
   const parsedFunctionData =
     (transaction as any).parsedFunctionData != null
-      ? JSON.stringify((transaction as any).parsedFunctionData, undefined, 2)
+      ? JSON.stringify(transformObject((transaction as any).parsedFunctionData), undefined, 2)
       : undefined;
   const parsedEventsData =
     (transaction as any).parsedEventsData != null
-      ? JSON.stringify((transaction as any).parsedEventsData, undefined, 2)
+      ? JSON.stringify(transformObject((transaction as any).parsedEventsData), undefined, 2)
       : undefined;
 
   return (
@@ -106,7 +120,7 @@ const TransactionItem: React.FC<TransactionProps> = ({ transaction }) => {
       <div className="columns mb-0">
         <div className="column is-family-monospace">
           <p>{convertDate(transaction.createdAt)}</p>
-          <p className="help">Fees: {convertTons(transaction.totalFees)} TON</p>
+          <p className="help">Fees: {convertTons(transaction.totalFees)} EVER</p>
         </div>
         <div className="column is-narrow-fullhd">
           <div className="field is-grouped is-grouped-multiline">
@@ -136,7 +150,11 @@ const TransactionItem: React.FC<TransactionProps> = ({ transaction }) => {
               </div>
             )}
 
-            <a href={transactionExplorerLink(transaction.id.hash)} target="_blank" className="tag is-link">
+            <a
+              href={transactionExplorerLink(networkGroup, transaction.id.hash)}
+              target="_blank"
+              className="tag is-link"
+            >
               {convertHash(transaction.id.hash)}
               &nbsp;
               <span className="icon">
@@ -167,10 +185,10 @@ const TransactionItem: React.FC<TransactionProps> = ({ transaction }) => {
                 <p className="help">External in</p>
               ) : (
                 <>
-                  <p>{convertTons(inMsg.value)} TON</p>
+                  <p>{convertTons(inMsg.value)} EVER</p>
                   <p className="help">
                     From:&nbsp;
-                    <a href={accountExplorerLink(inMsg.src)} target="_blank">
+                    <a href={accountExplorerLink(networkGroup, inMsg.src)} target="_blank">
                       {convertAddress(inMsg.src.toString())}
                     </a>
                   </p>
@@ -203,10 +221,10 @@ const TransactionItem: React.FC<TransactionProps> = ({ transaction }) => {
                     <p className="help">External out</p>
                   ) : (
                     <>
-                      <p>{convertTons(msg.value)} TON</p>
+                      <p>{convertTons(msg.value)} EVER</p>
                       <p className="help">
                         To:&nbsp;
-                        <a href={accountExplorerLink(msg.dst)} target="_blank">
+                        <a href={accountExplorerLink(networkGroup, msg.dst)} target="_blank">
                           {convertAddress(msg.dst.toString())}
                         </a>
                       </p>
@@ -236,6 +254,7 @@ const TransactionItem: React.FC<TransactionProps> = ({ transaction }) => {
 type SideBarProps = {
   version: number;
   inProgress: boolean;
+  networkGroup: string;
   address?: string;
   state?: ContractState;
   transactionCount: number;
@@ -247,6 +266,7 @@ type SideBarProps = {
 export const SideBar: React.FC<SideBarProps> = ({
   version,
   inProgress,
+  networkGroup,
   address,
   state,
   transactions,
@@ -267,7 +287,7 @@ export const SideBar: React.FC<SideBarProps> = ({
         </div>
       )}
       {transactions.map(transaction => (
-        <TransactionItem key={`${transaction.id.lt}${version}`} transaction={transaction} />
+        <TransactionItem key={`${transaction.id.lt}${version}`} networkGroup={networkGroup} transaction={transaction} />
       ))}
       {prevTransactionId != null && (
         <button

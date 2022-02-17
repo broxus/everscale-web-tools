@@ -76,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <>
                     {walletBalance != null && (
                       <CopyToClipboard text={walletBalance}>
-                        <button className="button is-white">{convertTons(walletBalance)} TON</button>
+                        <button className="button is-white">{convertTons(walletBalance)} EVER</button>
                       </CopyToClipboard>
                     )}
                     <div className="field has-addons">

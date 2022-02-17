@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { RawProviderApiResponse } from 'everscale-inpage-provider';
 import { convertError } from '../../common';
 
 export type SignerWorkspaceProps = {
-  signData: (data: string) => Promise<RawProviderApiResponse<'signData'>>;
+  signData: (data: string) => Promise<object>;
 };
 
 export const SignerWorkspace: React.FC<SignerWorkspaceProps> = ({ signData }) => {
