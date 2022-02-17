@@ -37,6 +37,7 @@ let walletSubscriber: Subscriber | undefined = undefined;
 const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [hasTonProvider, setHasTonProvider] = useState(false);
+  const [networkGroup, setNetworkGroup] = useState<string>('mainnet');
   const [walletAccount, setWalletAccount] = useState<Permissions['accountInteraction']>();
   const [walletBalance, setWalletBalance] = useState<string>();
 
@@ -78,7 +79,12 @@ const App: React.FC = () => {
           setWalletAccount(event.permissions.accountInteraction);
         });
 
+        (await ever.subscribe('networkChanged')).on('data', event => {
+          setNetworkGroup(event.selectedConnection);
+        });
+
         const currentProviderState = await ever.getProviderState();
+        setNetworkGroup(currentProviderState.selectedConnection);
         if (currentProviderState.permissions.accountInteraction != null) {
           await connectToWallet();
         }
@@ -128,7 +134,11 @@ const App: React.FC = () => {
           <Redirect to="/executor" />
         </Route>
         <Route key="executor" exact path="/executor">
-          <ExecutorWorkspace hasTonProvider={hasTonProvider} walletAccount={walletAccount} />
+          <ExecutorWorkspace
+            hasTonProvider={hasTonProvider}
+            networkGroup={networkGroup}
+            walletAccount={walletAccount}
+          />
         </Route>
         <Route key="visualizer" exact path="/visualizer">
           <VisualizerWorkspace />

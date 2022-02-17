@@ -20,6 +20,7 @@ import './style.scss';
 
 type ExecutorWorkspaceProps = {
   hasTonProvider: boolean;
+  networkGroup: string;
   walletAccount?: Permissions['accountInteraction'];
 };
 
@@ -27,9 +28,12 @@ const accountMutex: Mutex = new Mutex();
 let accountSubscriber: Subscriber | undefined = undefined;
 let accountTransactions: Transaction[] = [];
 
-export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({ hasTonProvider, walletAccount }) => {
+export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({
+  hasTonProvider,
+  networkGroup,
+  walletAccount
+}) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
-  const [networkGroup, setNetworkGroup] = useState<string>('mainnet');
   const [accountAddress, setAccountAddress] = useState<string>();
   const [accountState, setAccountState] = useState<ContractState>();
   const [transactionCount, setTransactionCount] = useState<number>(0);
