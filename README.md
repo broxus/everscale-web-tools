@@ -1,4 +1,4 @@
-## BOC-visualizer
+## Everscale web tools
 
 ### Requirements
 
@@ -10,8 +10,8 @@
 ### How to build
 
 ```bash
-git clone https://github.com/Rexagon/boc-visualizer.git
-cd boc-visualizer
+git clone https://github.com/broxus/everscale-web-tools.git
+cd everscale-web-tools
 npm install
 npm run build
 
