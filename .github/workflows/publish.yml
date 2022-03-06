@@ -1,0 +1,23 @@
+name: Publish
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16.x'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      - run: npm install
+      - run: npm run build
+      - run: |
+          git remote set-url origin https://git:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          npx gh-pages --dist dist --user "github-actions-bot <support+actions@github.com>"
