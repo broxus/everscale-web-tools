@@ -16,6 +16,7 @@
     "copy-webpack-plugin": "^7.0.0",
     "css-loader": "^5.0.2",
     "file-loader": "^6.2.0",
+    "gh-pages": "^3.2.3",
     "html-webpack-plugin": "^5.2.0",
     "prettier": "^2.2.1",
     "sass": "^1.32.8",
@@ -46,6 +47,7 @@
     "wasm-loader": "^1.3.0"
   },
   "scripts": {
+    "gh-pages": "npm run build && gh-pages --repo $(git remote --verbose | grep push | cut -f2 | cut -d' ' -f1) --dist dist",
     "start": "webpack --watch --config webpack.dev.js",
     "build": "webpack --config webpack.prod.js"
   },

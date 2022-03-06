@@ -20,6 +20,12 @@ npm run build
 npm run start
 ```
 
+### Publish
+
+```shell
+npm run gh-pages
+```
+
 ### Custom ABI syntax
 
 ```bnf
