@@ -30,7 +30,7 @@ pub fn main_js() -> Result<(), JsValue> {
 #[wasm_bindgen]
 pub fn decode(boc: &str) -> Result<String, JsValue> {
     let boc = base64::decode(boc).handle_error()?;
-    let cells = ton_types::deserialize_cells_tree(&mut std::io::Cursor::new(boc)).handle_error()?;
+    let cells = ton_types::deserialize_cells_tree(&mut boc.as_slice()).handle_error()?;
 
     let mut result = String::new();
     for cell in cells {
@@ -336,8 +336,7 @@ mod serde_helpers {
         let encoded = String::deserialize(deserializer)?;
         let encoded = encoded.trim();
         let bytes = base64::decode(&encoded).map_err(D::Error::custom)?;
-        ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(bytes))
-            .map_err(D::Error::custom)
+        ton_types::deserialize_tree_of_cells(&mut bytes.as_slice()).map_err(D::Error::custom)
     }
 
     pub fn deserialize_address<'de, D>(deserializer: D) -> Result<MsgAddressInt, D::Error>
