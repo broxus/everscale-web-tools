@@ -22,6 +22,8 @@ type ExecutorWorkspaceProps = {
   hasTonProvider: boolean;
   networkGroup: string;
   walletAccount?: Permissions['accountInteraction'];
+  selectedAddress?: string;
+  selectedAbi?: string;
 };
 
 const accountMutex: Mutex = new Mutex();
@@ -31,10 +33,12 @@ let accountTransactions: Transaction[] = [];
 export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({
   hasTonProvider,
   networkGroup,
-  walletAccount
+  walletAccount,
+  selectedAddress,
+  selectedAbi
 }) => {
   const [inProgress, setInProgress] = useState<boolean>(false);
-  const [accountAddress, setAccountAddress] = useState<string>();
+  const [accountAddress, setAccountAddress] = useState<string | undefined>(selectedAddress);
   const [accountState, setAccountState] = useState<ContractState>();
   const [transactionCount, setTransactionCount] = useState<number>(0);
   const [transactionVersion, setTransactionVersion] = useState(0);
@@ -229,6 +233,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({
                   return newAbi;
                 });
               }}
+              preloadAbi={selectedAbi}
             />
 
             {accountState != null && (

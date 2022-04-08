@@ -9,11 +9,14 @@ import { ever } from '../../';
 
 const DEFAULT_ABI_NAME = 'abi1';
 const BLOB_PART = /\/blob\//;
-const convertGithubLink = (address: URL) => {
-  if (address.origin != 'https://github.com' || !address.pathname.endsWith('.abi.json')) {
-    return address;
+const convertLink = (address: URL) => {
+  if (address.origin == 'https://github.com' && address.pathname.endsWith('.abi.json')) {
+    return new URL(`https://raw.githubusercontent.com${address.pathname.replace(BLOB_PART, '/')}`);
   }
-  return new URL(`https://raw.githubusercontent.com${address.pathname.replace(BLOB_PART, '/')}`);
+  if (address.origin.includes('abi.rs')) {
+    return address
+  }
+  return address
 };
 
 const getAllAbi = () => Object.keys(localStorage).map(name => ({ name, abi: localStorage.getItem(name) }));
@@ -42,9 +45,10 @@ enum LoadAbiType {
 type AbiFormProps = {
   inProgress: boolean;
   onChangeAbi: (abi: ParsedAbi) => void;
+  preloadAbi?: string;
 };
 
-export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi }) => {
+export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi , preloadAbi}) => {
   const [localInProgress, setLocalInProgress] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [loadAbiType, setLoadAbiType] = useState(LoadAbiType.FROM_TEXT);
@@ -149,7 +153,7 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi }) => 
           break;
         }
         case LoadAbiType.FROM_LINK: {
-          const url = convertGithubLink(new URL(value));
+          const url = convertLink(new URL(value));
           text = await fetch(url.toString(), {}).then(res => res.text());
           break;
         }
@@ -164,6 +168,17 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi }) => 
         setLocalInProgress(false);
       });
   };
+
+  useEffect(() => {
+    if (preloadAbi) {
+      (async () => {
+        const url = convertLink(new URL('https://' + preloadAbi));
+        const text = await fetch(url.toString(), {}).then(res => res.text());
+        changeAbi(preloadAbi, text);
+      })()
+    }
+  }, [])
+
 
   return (
     <>
