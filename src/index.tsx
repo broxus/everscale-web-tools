@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Permissions, ProviderRpcClient, Subscriber } from 'everscale-inpage-provider';
-import { BrowserRouter as Router, Switch, Route, Redirect } from 'react-router-dom';
+import { BrowserRouter as Router, Switch, Route, Redirect, useLocation } from 'react-router-dom';
 import { Mutex } from '@broxus/await-semaphore';
 
 import './styles/main.scss';
@@ -31,6 +31,11 @@ const disconnectFromWallet = async () => {
   await ever.disconnect();
 };
 
+const useQuery = () => {
+  const {search} = useLocation();
+  return React.useMemo(() => new URLSearchParams(search), [search]);
+}
+
 const walletMutex: Mutex = new Mutex();
 let walletSubscriber: Subscriber | undefined = undefined;
 
@@ -40,6 +45,7 @@ const App: React.FC = () => {
   const [networkGroup, setNetworkGroup] = useState<string>('mainnet');
   const [walletAccount, setWalletAccount] = useState<Permissions['accountInteraction']>();
   const [walletBalance, setWalletBalance] = useState<string>();
+  const query = useQuery();
 
   useEffect(() => {
     if (walletAccount == null) {
@@ -138,6 +144,8 @@ const App: React.FC = () => {
             hasTonProvider={hasTonProvider}
             networkGroup={networkGroup}
             walletAccount={walletAccount}
+            selectedAddress={query.get('addr') || undefined}
+            selectedAbi={query.get('abi') || undefined}
           />
         </Route>
         <Route key="visualizer" exact path="/visualizer">
