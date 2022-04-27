@@ -26,6 +26,7 @@ thiserror = "1.0"
 wasm-bindgen = { version = "0.2.76", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"
 wee_alloc = "0.4"
+optional-field = "0.1.2"
 
 ed25519-dalek = { git = "https://github.com/broxus/ed25519-dalek.git" }
 

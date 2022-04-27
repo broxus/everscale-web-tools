@@ -1,5 +1,6 @@
 use std::iter::Peekable;
 use std::str::FromStr;
+use optional_field::Field;
 
 use super::{lexer, Entity, Token};
 use crate::utils::TrustMe;
@@ -169,6 +170,7 @@ fn parse_ident(position: usize, ident: &str) -> Result<Option<Ident>, ParserErro
         "addr" | "address" => Ident::Address,
         "cell" => Ident::Cell,
         "gram" => Ident::Gram,
+        "optional" => Ident::Field,
         _ => return parse_ident_integer(position, ident),
     }))
 }
@@ -337,6 +339,7 @@ enum Ident {
     String,
     Cell,
     Gram,
+    Field,
 }
 
 impl From<Ident> for Token {
@@ -352,6 +355,7 @@ impl From<Ident> for Token {
             Ident::String => Token::String,
             Ident::Cell => Token::Cell,
             Ident::Gram => Token::Token,
+            Ident::Field => Token::Field,
         }
     }
 }

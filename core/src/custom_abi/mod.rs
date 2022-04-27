@@ -18,6 +18,7 @@ pub enum Token {
     Array(Box<Token>),
     Map(Box<Token>, Box<Token>),
     Tuple(Vec<Token>),
+    Field(Field<u8>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
