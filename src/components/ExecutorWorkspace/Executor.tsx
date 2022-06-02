@@ -14,9 +14,9 @@ const convertLink = (address: URL) => {
     return new URL(`https://raw.githubusercontent.com${address.pathname.replace(BLOB_PART, '/')}`);
   }
   if (address.origin.includes('abi.rs')) {
-    return address
+    return address;
   }
-  return address
+  return address;
 };
 
 const getAllAbi = () => Object.keys(localStorage).map(name => ({ name, abi: localStorage.getItem(name) }));
@@ -48,7 +48,7 @@ type AbiFormProps = {
   preloadAbi?: string;
 };
 
-export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi , preloadAbi}) => {
+export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi, preloadAbi }) => {
   const [localInProgress, setLocalInProgress] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [loadAbiType, setLoadAbiType] = useState(LoadAbiType.FROM_TEXT);
@@ -175,10 +175,9 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi , prel
         const url = convertLink(new URL('https://' + preloadAbi));
         const text = await fetch(url.toString(), {}).then(res => res.text());
         changeAbi(preloadAbi, text);
-      })()
+      })();
     }
-  }, [])
-
+  }, []);
 
   return (
     <>
@@ -372,7 +371,7 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
   collapsed,
   onToggleCollapse
 }) => {
-  const [values, setValues] = useState<core.AbiValue[]>([]);
+  const [values, setValues] = useState<core.AbiValue[]>(() => handler.makeDefaultState());
   const [inProgress, setInProgress] = useState(false);
   const [output, setOutput] = useState<any>();
   const [error, setError] = useState<string>();
@@ -381,16 +380,36 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
   const [withSignature, setWithSignature] = useState<boolean>(true);
   const [responsible, setResponsible] = useState<boolean>(false);
 
-  useEffect(() => {
-    setValues(handler.makeDefaultState());
-  }, []);
+  console.log(values);
 
   const runLocal = async () => {
+    // test conversion
+    values.forEach(value => {
+      if (value.type !== 'map') return;
+
+      const mappedData = Object.entries(value.data).map(([key, value]) => {
+        if (value.type !== 'tuple') return [key, value];
+
+        //@ts-ignore
+        const reducedValues = value.data.reduce((acc, item) => ({ ...acc, [item.name]: item.data }), {});
+
+        return [key, reducedValues];
+      });
+
+      //@ts-ignore
+      value.data = mappedData;
+    });
+
+    console.log('VALUES before rpc call', values);
+    const params = handler.makeTokensObject(values);
+    console.log('PARAMS', params);
+
     if (inProgress) {
       return;
     }
     setError(undefined);
     setInProgress(true);
+
     (async () => {
       const output = await ever.rawApi.runLocal({
         address,

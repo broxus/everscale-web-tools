@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { Fragment, useState } from 'react';
 import classNames from 'classnames';
 
 import * as core from '../../../core/pkg';
 
 import './style.scss';
 
-type AbiValueData<K extends string> = core.AbiValue extends core.AbiValueWrapper<K, infer T> ? T : never;
+type AbiValueData<K extends core.AbiValue['type']> = Extract<core.AbiValue, { type: K }>['data'];
 
 type HandlerArgs<K extends core.AbiValue['type']> = {
   abi: core.AbiParamType;
@@ -13,7 +13,7 @@ type HandlerArgs<K extends core.AbiValue['type']> = {
   onChange: (newData: AbiValueData<K>) => void;
 };
 
-type Handler = (args: HandlerArgs<core.AbiValue['type']>) => React.ReactNode;
+type Handler<T extends core.AbiValue['type'] = core.AbiValue['type']> = (args: HandlerArgs<T>) => React.ReactNode;
 
 const makeTextField: Handler = ({ value, onChange }): React.ReactNode => (
   <div className="control">
@@ -115,8 +115,80 @@ const makeArrayField: Handler = ({ abi, value, onChange }): React.ReactNode => {
   );
 };
 
+const makeMapField: Handler<'map'> = ({ abi, onChange, value }) => {
+  if (abi.kind !== 'map') return null;
+
+  console.log('MAP value', value, abi.info.value);
+
+  const keys = Object.keys(value);
+  const isOnlyOneKey = keys.length === 1;
+
+  function onChangeKey(newKey: string, oldKey: string) {
+    const prevContent = value[oldKey];
+    delete value[oldKey];
+    value[newKey] = prevContent;
+    onChange(value);
+  }
+  function onChangeValue(newData: any, key: string) {
+    console.log(newData, key);
+    value[key] = newData;
+    onChange(value);
+  }
+
+  function onAdd() {
+    const lastKey = keys[keys.length - 1];
+    const dataToClone = value[lastKey];
+    const newKey = lastKey + '0';
+
+    value[newKey] = JSON.parse(JSON.stringify(dataToClone));
+    onChange(value);
+  }
+  function onDelete(key: string) {
+    delete value[key];
+    onChange(value);
+  }
+
+  return (
+    <>
+      {keys.map(key => {
+        const keyField = makeTextField({
+          abi: abi.info.key,
+          value: key,
+          onChange: newValue => onChangeKey(newValue as string, key)
+        });
+
+        const valueField = (
+          <EntityBuilderItem
+            abi={{ name: 'map-value', type: abi.info.value }}
+            value={value[key]}
+            onChange={newValue => onChangeValue(newValue, key)}
+          />
+        );
+
+        return (
+          <Fragment key={key}>
+            <div className="map-key-row">
+              <span className="tag mr-1">map-key:</span>
+              <span className="key-input">{keyField}</span>
+              {!isOnlyOneKey && (
+                <button className="button is-danger is-small" title="Remove this record" onClick={() => onDelete(key)}>
+                  x
+                </button>
+              )}
+            </div>
+            {valueField}
+          </Fragment>
+        );
+      })}
+      <button className="button is-info is-small" onClick={onAdd}>
+        Add record
+      </button>
+    </>
+  );
+};
+
 const HANDLERS: {
-  [K in core.AbiValue['type']]: Handler;
+  [K in core.AbiValue['type']]: Handler<any>;
 } = {
   uint: makeTextField,
   int: makeTextField,
@@ -129,7 +201,8 @@ const HANDLERS: {
   address: makeTextAreaField,
   bytes: makeTextAreaField,
   string: makeTextAreaField,
-  pubkey: makeTextAreaField
+  pubkey: makeTextAreaField,
+  map: makeMapField
 };
 
 const getAbiTypeSignature = (param: core.AbiParamType): string => {
@@ -165,11 +238,15 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
 
     const type = abi.type;
 
+    //@ts-ignore -- test
+    value.name = abi.name;
+
     const showInput = () => {
       const handler = HANDLERS[value.type];
       if (handler == null) {
         return 'Unsupported';
       }
+
       return handler({
         abi: abi.type,
         value: value.data,

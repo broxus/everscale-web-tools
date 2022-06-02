@@ -1,17 +1,10 @@
 @import "../../styles/constants";
 
-.entity-builder-item {
+.map-key-row {
   display: flex;
-  flex-direction: column;
-  background-blend-mode: saturation;
-
-  span {
-    margin-left: $input-border-width;
-    margin-bottom: 0.5em;
-    font-weight: bold;
-  }
-
-  input[type="text"] {
-    margin-bottom: 0;
+  align-items: center;
+  
+  .key-input {
+    width: 100%;
   }
 }

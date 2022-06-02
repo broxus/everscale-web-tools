@@ -231,6 +231,7 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
 
                 ton_abi::TokenValue::Array(*param.clone(), result)
             }
+            // HERE
             (ton_abi::ParamType::Map(key, value), JsAbiValue::Map) => {
                 // TODO: add items
                 ton_abi::TokenValue::Map(*key.clone(), *value.clone(), Default::default())
@@ -437,7 +438,6 @@ impl AbiFunctionHandler {
     pub fn make_tokens_object(&self, values: AbiValueArray) -> Result<TokensObject, JsValue> {
         let values = values.unchecked_into();
         let function = &self.inner;
-
         let values = parse_abi_values(&function.inputs, values).handle_error()?;
         make_tokens_object(&values)
     }
@@ -518,7 +518,13 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
                 .collect::<js_sys::Array>()
                 .unchecked_into(),
         ),
-        ton_abi::ParamType::Map(_, _) => ("map", JsValue::undefined()),
+        ton_abi::ParamType::Map(_, value) => (
+            "map",
+            ObjectBuilder::new()
+                .set("empty-key-0", make_default_state(value))
+                .build()
+                .unchecked_into(),
+        ),
         ton_abi::ParamType::Cell => ("cell", JsValue::from(encode_empty_cell().trust_me())),
         ton_abi::ParamType::Address => (
             "address",
@@ -669,6 +675,7 @@ export type AbiValue =
   | AbiValueWrapper<'varint', string>
   | AbiValueWrapper<'bool', boolean>
   | AbiValueWrapper<'tuple', AbiValue[]>
+  | AbiValueWrapper<'map', { [k: string]: AbiValue }>
   | AbiValueWrapper<'array', AbiValue[]>
   | AbiValueWrapper<'cell', string>
   | AbiValueWrapper<'address', string>
