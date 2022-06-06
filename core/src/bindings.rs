@@ -447,7 +447,7 @@ impl AbiFunctionHandler {
         self.inner
             .inputs
             .iter()
-            .map(|param| make_default_state(&param.kind))
+            .map(|param| make_default_state(&param.kind, &param.name))
             .map(JsValue::from)
             .collect::<js_sys::Array>()
             .unchecked_into()
@@ -473,13 +473,13 @@ impl AbiEntityHandler {
             Entity::Empty => std::iter::empty::<JsValue>().collect::<js_sys::Array>(),
             Entity::Cell(inputs) => inputs
                 .iter()
-                .map(|param| make_default_state(&param.kind))
+                .map(|param| make_default_state(&param.kind, &param.name))
                 .map(JsValue::from)
                 .collect::<js_sys::Array>(),
             Entity::Function(function) => function
                 .inputs
                 .iter()
-                .map(|param| make_default_state(&param.kind))
+                .map(|param| make_default_state(&param.kind, &param.name))
                 .map(JsValue::from)
                 .collect::<js_sys::Array>(),
         }
@@ -487,8 +487,8 @@ impl AbiEntityHandler {
     }
 }
 
-fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
-    let (ty, data) = match param {
+pub fn make_default_state(param: &ton_abi::ParamType, name: &str) -> AbiValue {
+    let (type_name, data) = match param {
         ton_abi::ParamType::Uint(_) => ("uint", JsValue::from_str("0")),
         ton_abi::ParamType::Int(_) => ("int", JsValue::from_str("0")),
         ton_abi::ParamType::VarUint(_) => ("varuint", JsValue::from_str("0")),
@@ -498,31 +498,31 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
             "tuple",
             params
                 .iter()
-                .map(|param| make_default_state(&param.kind))
+                .map(|param| make_default_state(&param.kind, &param.name))
                 .map(JsValue::from)
                 .collect::<js_sys::Array>()
                 .unchecked_into(),
         ),
         ton_abi::ParamType::Array(param) => (
             "array",
-            std::iter::once(make_default_state(param.as_ref()))
+            std::iter::once(make_default_state(param.as_ref(), name))
                 .map(JsValue::from)
                 .collect::<js_sys::Array>()
                 .unchecked_into(),
         ),
         ton_abi::ParamType::FixedArray(param, len) => (
             "array",
-            std::iter::repeat_with(|| make_default_state(param.as_ref()))
+            std::iter::repeat_with(|| make_default_state(param.as_ref(), name))
                 .take(*len)
                 .map(JsValue::from)
                 .collect::<js_sys::Array>()
                 .unchecked_into(),
         ),
-        ton_abi::ParamType::Map(_, value) => (
+        ton_abi::ParamType::Map(_, _) => (
             "map",
-            ObjectBuilder::new()
-                .set("empty-key-0", make_default_state(value))
-                .build()
+            std::iter::empty::<i32>()
+                .map(JsValue::from)
+                .collect::<js_sys::Array>()
                 .unchecked_into(),
         ),
         ton_abi::ParamType::Cell => ("cell", JsValue::from(encode_empty_cell().trust_me())),
@@ -540,12 +540,13 @@ fn make_default_state(param: &ton_abi::ParamType) -> AbiValue {
         ton_abi::ParamType::Expire => ("uint", JsValue::from(u32::MAX.to_string())),
         ton_abi::ParamType::PublicKey => ("pubkey", JsValue::null()),
         ton_abi::ParamType::Optional(_) => ("optional", JsValue::null()),
-        ton_abi::ParamType::Ref(param) => return make_default_state(param),
+        ton_abi::ParamType::Ref(param) => return make_default_state(param, name),
     };
 
     ObjectBuilder::new()
-        .set("type", ty)
+        .set("type", type_name)
         .set("data", data)
+        .set("name", name)
         .build()
         .unchecked_into()
 }
@@ -675,7 +676,7 @@ export type AbiValue =
   | AbiValueWrapper<'varint', string>
   | AbiValueWrapper<'bool', boolean>
   | AbiValueWrapper<'tuple', AbiValue[]>
-  | AbiValueWrapper<'map', { [k: string]: AbiValue }>
+  | AbiValueWrapper<'map', [AbiValue, AbiValue][]>
   | AbiValueWrapper<'array', AbiValue[]>
   | AbiValueWrapper<'cell', string>
   | AbiValueWrapper<'address', string>
@@ -793,11 +794,14 @@ impl From<&'_ Entity> for JsValue {
 fn serialize_param(param: &ton_abi::Param) -> JsValue {
     ObjectBuilder::new()
         .set("name", param.name.as_str())
-        .set("type", serialize_param_type(&param.kind))
+        .set(
+            "type",
+            serialize_param_type(&param.kind, param.name.as_str()),
+        )
         .build()
 }
 
-fn serialize_param_type(param: &ton_abi::ParamType) -> JsValue {
+fn serialize_param_type(param: &ton_abi::ParamType, name: &str) -> JsValue {
     let (kind, info) = match param {
         ton_abi::ParamType::Uint(size) => (
             "uint",
@@ -828,14 +832,14 @@ fn serialize_param_type(param: &ton_abi::ParamType) -> JsValue {
         ton_abi::ParamType::Array(ty) => (
             "array",
             ObjectBuilder::new()
-                .set("type", serialize_param_type(ty))
-                .set("defaultValue", make_default_state(ty))
+                .set("type", serialize_param_type(ty, name))
+                .set("defaultValue", make_default_state(ty, name))
                 .build(),
         ),
         ton_abi::ParamType::FixedArray(ty, size) => (
             "fixedarray",
             ObjectBuilder::new()
-                .set("type", serialize_param_type(ty.as_ref()))
+                .set("type", serialize_param_type(ty.as_ref(), name))
                 .set("size", *size as u32)
                 .build(),
         ),
@@ -843,8 +847,10 @@ fn serialize_param_type(param: &ton_abi::ParamType) -> JsValue {
         ton_abi::ParamType::Map(key, value) => (
             "map",
             ObjectBuilder::new()
-                .set("key", serialize_param_type(key.as_ref()))
-                .set("value", serialize_param_type(value.as_ref()))
+                .set("key", serialize_param_type(key.as_ref(), name))
+                .set("value", serialize_param_type(value.as_ref(), name))
+                .set("defaultValue", make_default_state(value, name))
+                .set("defaultKey", make_default_state(key, name))
                 .build(),
         ),
         ton_abi::ParamType::Address => ("address", JsValue::null()),
@@ -858,8 +864,8 @@ fn serialize_param_type(param: &ton_abi::ParamType) -> JsValue {
         ton_abi::ParamType::Time => ("time", JsValue::null()),
         ton_abi::ParamType::Expire => ("expire", JsValue::null()),
         ton_abi::ParamType::PublicKey => ("publicKey", JsValue::null()),
-        ton_abi::ParamType::Optional(param) => ("optional", serialize_param_type(param)),
-        ton_abi::ParamType::Ref(param) => ("ref", serialize_param_type(param)),
+        ton_abi::ParamType::Optional(param) => ("optional", serialize_param_type(param, name)),
+        ton_abi::ParamType::Ref(param) => ("ref", serialize_param_type(param, name)),
     };
 
     ObjectBuilder::new()

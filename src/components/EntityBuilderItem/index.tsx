@@ -118,64 +118,66 @@ const makeArrayField: Handler = ({ abi, value, onChange }): React.ReactNode => {
 const makeMapField: Handler<'map'> = ({ abi, onChange, value }) => {
   if (abi.kind !== 'map') return null;
 
-  console.log('MAP value', value, abi.info.value);
+  const defaultKey = (abi.info as any).defaultKey as core.AbiValue;
+  const defaultValue = (abi.info as any).defaultValue as core.AbiValue;
 
-  const keys = Object.keys(value);
-  const isOnlyOneKey = keys.length === 1;
+  const findRecordByKey = (someKey: core.AbiValue): [[core.AbiValue, core.AbiValue] | undefined, number] => {
+    const index = value.findIndex(([key]) => key === someKey);
+    const tuple = value[index];
+    return [tuple, index];
+  };
 
-  function onChangeKey(newKey: string, oldKey: string) {
-    const prevContent = value[oldKey];
-    delete value[oldKey];
-    value[newKey] = prevContent;
+  function onChangeKey(newKey: any, oldKey: any) {
+    const [record] = findRecordByKey(oldKey);
+    if (!record) return console.warn('Cant find record to change');
+
+    record[0] = newKey;
     onChange(value);
   }
-  function onChangeValue(newData: any, key: string) {
-    console.log(newData, key);
-    value[key] = newData;
+  function onChangeValue(newData: any, key: any) {
+    const [record] = findRecordByKey(key);
+    if (!record) return console.warn('Cant find record to change');
+
+    record[1] = newData;
     onChange(value);
   }
 
   function onAdd() {
-    const lastKey = keys[keys.length - 1];
-    const dataToClone = value[lastKey];
-    const newKey = lastKey + '0';
-
-    value[newKey] = JSON.parse(JSON.stringify(dataToClone));
+    const clone = JSON.parse(JSON.stringify(defaultValue));
+    value.push([defaultKey, clone]);
     onChange(value);
   }
-  function onDelete(key: string) {
-    delete value[key];
-    onChange(value);
+  function onDelete(key: any) {
+    const [, indexToDelete] = findRecordByKey(key);
+    const updatedValues = value.filter((_, index) => index !== indexToDelete);
+    onChange(updatedValues);
   }
 
   return (
     <>
-      {keys.map(key => {
-        const keyField = makeTextField({
-          abi: abi.info.key,
-          value: key,
-          onChange: newValue => onChangeKey(newValue as string, key)
-        });
+      {value.map(([key, value], index) => {
+        const keyField = (
+          <EntityBuilderItem
+            abi={{ name: 'map-key', type: abi.info.key }}
+            value={key}
+            onChange={newKey => onChangeKey(newKey, key)}
+          />
+        );
 
         const valueField = (
           <EntityBuilderItem
             abi={{ name: 'map-value', type: abi.info.value }}
-            value={value[key]}
+            value={value}
             onChange={newValue => onChangeValue(newValue, key)}
           />
         );
 
         return (
-          <Fragment key={key}>
-            <div className="map-key-row">
-              <span className="tag mr-1">map-key:</span>
-              <span className="key-input">{keyField}</span>
-              {!isOnlyOneKey && (
-                <button className="button is-danger is-small" title="Remove this record" onClick={() => onDelete(key)}>
-                  x
-                </button>
-              )}
-            </div>
+          <Fragment key={index}>
+            <button className="button is-danger is-small wide" title="Remove this record" onClick={() => onDelete(key)}>
+              x
+            </button>
+            {keyField}
             {valueField}
           </Fragment>
         );
@@ -237,9 +239,6 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
     const { abi, value, onChange, onDelete } = this.props;
 
     const type = abi.type;
-
-    //@ts-ignore -- test
-    value.name = abi.name;
 
     const showInput = () => {
       const handler = HANDLERS[value.type];

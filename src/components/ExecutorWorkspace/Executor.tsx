@@ -380,25 +380,27 @@ const FunctionItem: React.FC<FunctinItemProps> = ({
   const [withSignature, setWithSignature] = useState<boolean>(true);
   const [responsible, setResponsible] = useState<boolean>(false);
 
-  console.log(values);
+  useEffect(() => {
+    console.log(values);
+  }, [values]);
 
   const runLocal = async () => {
     // test conversion
-    values.forEach(value => {
-      if (value.type !== 'map') return;
+    // values.forEach(value => {
+    //   if (value.type !== 'map') return;
 
-      const mappedData = Object.entries(value.data).map(([key, value]) => {
-        if (value.type !== 'tuple') return [key, value];
+    //   const mappedData = Object.entries(value.data).map(([key, value]) => {
+    //     if (value.type !== 'tuple') return [key, value];
 
-        //@ts-ignore
-        const reducedValues = value.data.reduce((acc, item) => ({ ...acc, [item.name]: item.data }), {});
+    //     //@ts-ignore
+    //     const reducedValues = value.data.reduce((acc, item) => ({ ...acc, [item.name]: item.data }), {});
 
-        return [key, reducedValues];
-      });
+    //     return [key, reducedValues];
+    //   });
 
-      //@ts-ignore
-      value.data = mappedData;
-    });
+    //   //@ts-ignore
+    //   value.data = mappedData;
+    // });
 
     console.log('VALUES before rpc call', values);
     const params = handler.makeTokensObject(values);
