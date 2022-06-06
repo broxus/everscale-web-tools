@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use anyhow::Result;
 use num_bigint::{BigInt, BigUint};
 use num_traits::cast::ToPrimitive;
-use serde::{Deserialize, Serialize};
-use ton_block::{Deserializable, MsgAddressInt};
+use serde::Deserialize;
+use ton_block::MsgAddressInt;
 use ton_types::Cell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -42,54 +42,27 @@ pub fn decode(boc: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen(js_name = "validateContractAbi")]
 pub fn validate_contract_abi(input: &str) -> Result<ValidatedAbi, JsValue> {
-    #[derive(Deserialize)]
-    struct SerdeFunction {
-        pub name: String,
-    }
-
-    #[derive(Deserialize)]
-    struct SerdeEvent {
-        pub name: String,
-    }
-
-    #[derive(Deserialize)]
-    struct SerdeContract {
-        pub functions: Vec<SerdeFunction>,
-        #[serde(default)]
-        events: Vec<SerdeEvent>,
-    }
-
-    let intermediate_contract: SerdeContract = serde_json::from_str(input).handle_error()?;
-
-    let contract: ton_abi::Contract =
-        ton_abi::Contract::load(&mut std::io::Cursor::new(input)).handle_error()?;
-
-    let functions = contract
-        .functions()
-        .keys()
-        .map(JsValue::from)
-        .collect::<js_sys::Array>();
+    let contract = ton_abi::Contract::load(input).handle_error()?;
 
     let events = contract
-        .events()
-        .keys()
+        .events
+        .into_keys()
         .map(JsValue::from)
         .collect::<js_sys::Array>();
 
-    let function_handlers = intermediate_contract
+    let (functions, handlers): (js_sys::Array, js_sys::Array) = contract
         .functions
         .into_iter()
-        .filter_map(|SerdeFunction { name }| {
-            let function = contract.function(&name).ok()?;
-            Some(AbiFunctionHandler {
-                inner: function.clone(),
-            })
+        .map(|(name, function)| {
+            (
+                JsValue::from(name),
+                JsValue::from(AbiFunctionHandler { inner: function }),
+            )
         })
-        .map(JsValue::from)
-        .collect::<js_sys::Array>();
+        .unzip();
 
     Ok(ObjectBuilder::new()
-        .set("functionHandlers", function_handlers)
+        .set("functionHandlers", handlers)
         .set("functionNames", functions)
         .set("eventNames", events)
         .build()
@@ -326,8 +299,6 @@ mod serde_helpers {
     use num_traits::Num;
     use serde::de;
     use serde::de::Error;
-    use ton_block::Deserializable;
-    use ton_types::SliceData;
 
     pub fn deserialize_cell<'de, D>(deserializer: D) -> Result<Cell, D::Error>
     where
@@ -396,7 +367,6 @@ mod serde_helpers {
                     None => BigUint::from_str(string).map_err(D::Error::custom),
                 }
             }
-            _ => Ok(Default::default()),
         }
     }
 
@@ -416,7 +386,6 @@ mod serde_helpers {
                     None => BigInt::from_str(string).map_err(D::Error::custom),
                 }
             }
-            _ => Ok(Default::default()),
         }
     }
 }
