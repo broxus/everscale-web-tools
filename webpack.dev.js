@@ -18,7 +18,6 @@ module.exports = merge(common, {
       static: common.output.path,
       liveReload: true,
       host: 'localhost',
-      port: 8080,
       historyFallback: true
     })
   ]

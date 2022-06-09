@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use anyhow::Result;
 use num_bigint::{BigInt, BigUint};
@@ -231,10 +231,19 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
 
                 ton_abi::TokenValue::Array(*param.clone(), result)
             }
-            // HERE
-            (ton_abi::ParamType::Map(key, value), JsAbiValue::Map) => {
-                // TODO: add items
-                ton_abi::TokenValue::Map(*key.clone(), *value.clone(), Default::default())
+            (ton_abi::ParamType::Map(key_type, value_type), JsAbiValue::Map(values)) => {
+                let mut tree_map = BTreeMap::default();
+
+                for mut value in values.into_iter() {
+                    let parsed_key =
+                        parse_token_value((key_type.as_ref(), value.remove(0))).unwrap();
+                    let parsed_value =
+                        parse_token_value((value_type.as_ref(), value.remove(0))).unwrap();
+
+                    tree_map.insert(parsed_key.to_string(), parsed_value);
+                }
+
+                ton_abi::TokenValue::Map(*key_type.clone(), *value_type.clone(), tree_map)
             }
             (ton_abi::ParamType::Address, JsAbiValue::Address(address)) => {
                 let value = match address {
@@ -649,7 +658,7 @@ enum JsAbiValue {
     Bool(bool),
     Tuple(Vec<JsAbiValue>),
     Array(Vec<JsAbiValue>),
-    Map,
+    Map(Vec<Vec<JsAbiValue>>),
     #[serde(deserialize_with = "serde_helpers::deserialize_cell")]
     Cell(Cell),
     #[serde(deserialize_with = "serde_helpers::deserialize_address")]
