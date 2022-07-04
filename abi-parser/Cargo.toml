@@ -1,0 +1,13 @@
+[package]
+name = "abi-parser"
+description = "ABI parser"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+pest = "2.1"
+pest_derive = "2.1"
+thiserror = "1.0"
+
+ton_abi = { git = "https://github.com/broxus/ton-labs-abi.git" }
+ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }

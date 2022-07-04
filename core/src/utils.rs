@@ -1,6 +1,32 @@
 use anyhow::Context;
 use wasm_bindgen::JsValue;
 
+pub struct ObjectBuilder {
+    object: js_sys::Object,
+}
+
+impl ObjectBuilder {
+    pub fn new() -> Self {
+        Self {
+            object: js_sys::Object::new(),
+        }
+    }
+
+    pub fn set<T>(self, key: &str, value: T) -> Self
+    where
+        JsValue: From<T>,
+    {
+        let key = JsValue::from_str(key);
+        let value = JsValue::from(value);
+        js_sys::Reflect::set(&self.object, &key, &value).trust_me();
+        self
+    }
+
+    pub fn build(self) -> JsValue {
+        JsValue::from(self.object)
+    }
+}
+
 impl<T, E> HandleError for Result<T, E>
 where
     E: ToString,

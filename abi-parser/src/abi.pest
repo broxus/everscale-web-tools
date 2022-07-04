@@ -1,0 +1,52 @@
+WHITESPACE = _{ " " | NEWLINE }
+
+nat_const = @{ ASCII_DIGIT+ }
+
+ty_uint = ${ "uint" ~ nat_const? }
+ty_int = ${ "int" ~ nat_const? }
+ty_varuint = ${ "uint" ~ nat_const }
+ty_varint = ${ "uint" ~ nat_const }
+ty_bool = @{ "bool" }
+ty_cell = @{ "cell" }
+ty_address = @{ "addr" | "address" }
+ty_bytes = @{ "bytes" }
+ty_fixedbytes = ${ "fixedbytes" ~ nat_const }
+ty_string = @{ "string" }
+ty_token = @{ "gram" | "token" }
+ty_optional = { "optional" ~ "(" ~ ty ~ ")" }
+ty_ref = { "ref" ~ "(" ~ ty ~ ")" }
+ty_tuple = { "(" ~ ty ~ ("," ~ ty)* ~ ")" }
+
+map_key = _{ ty_address | ty_uint | ty_int | ty_varuint | ty_varint }
+ty_map = { ("map" | "mapping") ~ "(" ~ map_key ~ "," ~ ty ~ ")" }
+
+ty_not_array = _{
+    ty_uint |
+    ty_int |
+    ty_varuint |
+    ty_varint |
+    ty_bool |
+    ty_cell |
+    ty_address |
+    ty_bytes |
+    ty_fixedbytes |
+    ty_string |
+    ty_token |
+    ty_optional |
+    ty_ref |
+    ty_tuple |
+    ty_map
+}
+ty_array = { ty_not_array ~ "[]" }
+ty_fixedarray = { ty_not_array ~ "[" ~ nat_const ~ "]" }
+
+ty = _{ ty_array | ty_fixedarray | ty_not_array }
+
+function_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+function_params = { "(" ~ (ty ~ ("," ~ ty)* )? ~ ")" }
+function_version = @{ "v1" | "v2" }
+function = { function_name ~ function_params ~ function_params ~ function_version }
+
+cell = { ty ~ ("," ~ ty)* }
+
+abi = _{ SOI ~ (function | cell) ~ EOI }

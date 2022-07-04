@@ -1,3 +1,3 @@
-mod bindings;
-mod custom_abi;
+pub mod bindings;
+pub mod debugger;
 mod utils;

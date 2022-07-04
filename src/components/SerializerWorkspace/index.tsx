@@ -91,7 +91,7 @@ export class SerializerWorkspace extends React.Component<{}, SerializerWorkspace
                   rows={5}
                 />
               </div>
-              {error != null && <p className="help is-danger">{error}</p>}
+              {error != null && <pre className="help is-danger">{error}</pre>}
             </div>
           </div>
         </section>

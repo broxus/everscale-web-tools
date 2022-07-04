@@ -1,254 +1,21 @@
 use std::collections::{BTreeMap, HashMap};
-use std::pin::Pin;
-use std::str::FromStr;
-use std::sync::atomic::AtomicU64;
-use std::sync::Arc;
 
+use abi_parser::Entity;
 use anyhow::Result;
 use num_bigint::{BigInt, BigUint};
 use num_traits::cast::ToPrimitive;
 use serde::Deserialize;
-use ton_block::{Deserializable, MsgAddressInt, Serializable};
-use ton_executor::TransactionExecutor;
+use ton_block::MsgAddressInt;
 use ton_types::Cell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
-use crate::custom_abi::{self, calc_function_id, get_function_signature};
 use crate::utils::*;
 
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     pub fn log(s: &str);
-}
-
-#[wasm_bindgen(js_name = "execute")]
-pub fn execute(account: &str, message: &str, time: u32, lt: &str) -> Result<JsValue, JsValue> {
-    let mut root_cell = parse_cell(account)?;
-    let account = ton_block::Account::construct_from_cell(root_cell.clone()).handle_error()?;
-    let message = ton_block::Message::construct_from_cell(parse_cell(message)?).handle_error()?;
-
-    let config = fetch_config().handle_error()?;
-    let executor = ton_executor::OrdinaryTransactionExecutor::new(config);
-
-    let lt = u64::from_str(lt).handle_error()?;
-
-    let last_trans_lt = match account.stuff() {
-        Some(state) => state.storage.last_trans_lt,
-        None => 0,
-    };
-
-    let mut actions = Box::pin(Vec::<StackItem>::new());
-
-    let params = ton_executor::ExecuteParams {
-        block_unixtime: time,
-        block_lt: lt,
-        last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt)),
-        trace_callback: {
-            struct Crime(*mut Vec<StackItem>);
-
-            impl Crime {
-                fn push(&self, info: &ton_vm::executor::EngineTraceInfo) {
-                    let actions = unsafe { &mut *self.0 };
-
-                    actions.push(StackItem {
-                        step: info.step,
-                        gas_used: info.gas_used,
-                        gas_cmd: info.gas_cmd,
-                        cmd: info.cmd_str.clone(),
-                        stack: info.stack.storage.clone(),
-                    })
-                }
-            }
-
-            unsafe impl Send for Crime {}
-            unsafe impl Sync for Crime {}
-
-            let actions = Crime(&mut *actions as _);
-            Some(Arc::new(move |_, info| {
-                actions.push(info);
-            }))
-        },
-        ..Default::default()
-    };
-
-    let transaction = executor
-        .execute_with_libs_and_params(Some(&message), &mut root_cell, params)
-        .handle_error()?;
-
-    let steps = js_sys::Array::new();
-    let gas_used = js_sys::Array::new();
-    let gas_cmds = js_sys::Array::new();
-    let cmds = js_sys::Array::new();
-    let stacks = js_sys::Array::new();
-
-    Pin::into_inner(actions).into_iter().for_each(|action| {
-        steps.push(&JsValue::from(action.step));
-        gas_used.push(&JsValue::from(action.gas_used.to_string()));
-        gas_cmds.push(&JsValue::from(action.gas_cmd.to_string()));
-        cmds.push(&JsValue::from(action.cmd));
-        stacks.push(&JsValue::from(
-            action
-                .stack
-                .into_iter()
-                .map(|item| JsValue::from(item.to_string()))
-                .collect::<js_sys::Array>(),
-        ));
-    });
-
-    Ok(ObjectBuilder::new()
-        .set("transaction", make_transaction(transaction)?)
-        .set("steps", steps)
-        .set("gasUsed", gas_used)
-        .set("gasCmds", gas_cmds)
-        .set("cmds", cmds)
-        .set("stacks", stacks)
-        .build())
-}
-
-pub fn make_transaction(data: ton_block::Transaction) -> Result<JsValue, JsValue> {
-    fn make_account_status(status: ton_block::AccountStatus) -> JsValue {
-        JsValue::from_str(match status {
-            ton_block::AccountStatus::AccStateUninit => "uninit",
-            ton_block::AccountStatus::AccStateFrozen => "frozen",
-            ton_block::AccountStatus::AccStateActive => "active",
-            ton_block::AccountStatus::AccStateNonexist => "nonexist",
-        })
-    }
-
-    pub fn make_message(hash: ton_types::UInt256, data: ton_block::Message) -> JsValue {
-        let (body, body_hash) = if let Some(body) = data.body() {
-            let body_hash = body.hash(ton_types::MAX_LEVEL);
-            let data = ton_types::serialize_toc(&body.into_cell()).expect("Shouldn't fail");
-            (Some(base64::encode(data)), Some(body_hash.to_hex_string()))
-        } else {
-            (None, None)
-        };
-
-        let bounce = match data.int_header() {
-            Some(header) => header.bounce,
-            None => false,
-        };
-
-        let value = match data.value() {
-            Some(value) => JsValue::from(value.grams.0.to_string()),
-            None => JsValue::from_str("0"),
-        };
-
-        ObjectBuilder::new()
-            .set("hash", hash.to_hex_string())
-            .set("src", data.src_ref().map(ToString::to_string))
-            .set("dst", data.dst_ref().map(ToString::to_string))
-            .set("value", value)
-            .set("bounce", bounce)
-            .set("bounced", data.bounced())
-            .set("body", body)
-            .set("bodyHash", body_hash)
-            .build()
-    }
-
-    let hash = data.serialize().handle_error()?.repr_hash();
-
-    let info = data.read_description().handle_error()?;
-
-    let mut total_fees = data.total_fees.grams.0;
-    let (exit_code, result_code) = match &info {
-        ton_block::TransactionDescr::Ordinary(info) => {
-            let exit_code = match &info.compute_ph {
-                ton_block::TrComputePhase::Vm(phase) => Some(phase.exit_code),
-                ton_block::TrComputePhase::Skipped(_) => None,
-            };
-            let result_code = match &info.action {
-                Some(phase) => {
-                    total_fees += phase
-                        .total_fwd_fees
-                        .as_ref()
-                        .map(|grams| grams.0)
-                        .unwrap_or_default();
-                    total_fees -= phase
-                        .total_action_fees
-                        .as_ref()
-                        .map(|grams| grams.0)
-                        .unwrap_or_default();
-
-                    Some(phase.result_code)
-                }
-                None => None,
-            };
-
-            (exit_code, result_code)
-        }
-        _ => (None, None),
-    };
-
-    let in_msg = match &data.in_msg {
-        Some(message) => {
-            let hash = message.hash();
-            let message = message.read_struct().handle_error()?;
-            Some(make_message(hash, message))
-        }
-        None => None,
-    };
-
-    let mut out_msgs = Vec::new();
-    data.out_msgs
-        .iterate_slices(|slice| {
-            if let Ok(message) = slice.reference(0).and_then(|cell| {
-                let hash = cell.repr_hash();
-                Ok(make_message(
-                    hash,
-                    ton_block::Message::construct_from_cell(cell)?,
-                ))
-            }) {
-                out_msgs.push(message);
-            }
-            Ok(true)
-        })
-        .handle_error()?;
-
-    Ok(ObjectBuilder::new()
-        .set(
-            "id",
-            ObjectBuilder::new()
-                .set("lt", data.lt.to_string())
-                .set("hash", hash.to_hex_string())
-                .build(),
-        )
-        .set(
-            "prevTransactionId",
-            if data.prev_trans_lt > 0 {
-                Some(
-                    ObjectBuilder::new()
-                        .set("lt", data.prev_trans_lt)
-                        .set("hash", data.prev_trans_hash.to_hex_string())
-                        .build(),
-                )
-            } else {
-                None
-            },
-        )
-        .set("createdAt", data.now)
-        .set("aborted", info.is_aborted())
-        .set("exitCode", exit_code)
-        .set("resultCode", result_code)
-        .set("origStatus", make_account_status(data.orig_status))
-        .set("endStatus", make_account_status(data.end_status))
-        .set("totalFees", total_fees.to_string())
-        .set("inMessage", in_msg)
-        .set(
-            "outMessages",
-            out_msgs.into_iter().collect::<js_sys::Array>(),
-        )
-        .build())
-}
-
-struct StackItem {
-    step: u32,
-    gas_used: i64,
-    gas_cmd: i64,
-    cmd: String,
-    stack: Vec<ton_vm::stack::StackItem>,
 }
 
 #[wasm_bindgen]
@@ -310,59 +77,28 @@ export type ValidatedAbi = {
 
 #[wasm_bindgen(js_name = "parseAbi")]
 pub fn parse_abi(input: &str) -> Result<AbiEntityHandler, JsValue> {
-    let inner = custom_abi::parse(input)
-        .map(Entity::from)
+    const DEFAULT_VERSION: ton_abi::contract::AbiVersion = ton_abi::contract::ABI_VERSION_2_2;
+
+    let inner = Entity::parse(input)
         .or_else(|e| {
             let value: serde_json::Value = match serde_json::from_str(input) {
                 Ok(value) => value,
                 Err(_) => return Err(e.to_string()),
             };
 
-            serde_json::from_value::<AbiFunction>(value)
+            serde_json::from_value::<ton_abi::contract::SerdeFunction>(value)
                 .map(|function| {
-                    let abi_version = 2;
-
-                    let (input_id, output_id) =
-                        function.id.map(|id| (id, id)).unwrap_or_else(|| {
-                            let id = calc_function_id(&get_function_signature(
-                                &function.name,
-                                &function.inputs,
-                                &function.outputs,
-                                abi_version,
-                            ));
-                            (id & 0x7FFFFFFF, id | 0x80000000)
-                        });
-
-                    Entity::Function(ton_abi::Function {
-                        abi_version: ton_abi::contract::ABI_VERSION_2_1,
-                        name: function.name,
-                        header: Vec::new(),
-                        inputs: function.inputs,
-                        outputs: function.outputs,
-                        input_id,
-                        output_id,
-                    })
+                    Entity::Function(ton_abi::Function::from_serde(
+                        DEFAULT_VERSION,
+                        function,
+                        Default::default(),
+                    ))
                 })
                 .map_err(|e| e.to_string())
         })
         .handle_error()?;
 
     Ok(AbiEntityHandler { inner })
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-struct AbiFunction {
-    pub name: String,
-
-    #[serde(default)]
-    pub inputs: Vec<ton_abi::Param>,
-
-    #[serde(default)]
-    pub outputs: Vec<ton_abi::Param>,
-
-    #[serde(default)]
-    #[serde(deserialize_with = "ton_abi::contract::deserialize_opt_u32_from_string")]
-    pub id: Option<u32>,
 }
 
 #[wasm_bindgen(js_name = "encodeEmptyCell")]
@@ -567,7 +303,7 @@ mod serde_helpers {
         let string = string.trim();
         hex::decode(&string)
             .or_else(|_| base64::decode(&string))
-            .map_err(D::Error::custom)
+            .map_err(Error::custom)
     }
 
     pub fn deserialize_optional_pubkey<'de, D>(
@@ -580,7 +316,7 @@ mod serde_helpers {
             let bytes = hex::decode(string.trim()).map_err(D::Error::custom)?;
             ed25519_dalek::PublicKey::from_bytes(&bytes)
                 .map(Some)
-                .map_err(D::Error::custom)
+                .map_err(Error::custom)
         } else {
             Ok(None)
         }
@@ -605,8 +341,8 @@ mod serde_helpers {
                     return Ok(Default::default());
                 }
                 match string.strip_prefix("0x") {
-                    Some(hex) => BigUint::from_str_radix(hex, 16).map_err(D::Error::custom),
-                    None => BigUint::from_str(string).map_err(D::Error::custom),
+                    Some(hex) => BigUint::from_str_radix(hex, 16).map_err(Error::custom),
+                    None => BigUint::from_str(string).map_err(Error::custom),
                 }
             }
         }
@@ -624,8 +360,8 @@ mod serde_helpers {
                     return Ok(Default::default());
                 }
                 match string.strip_prefix("0x") {
-                    Some(hex) => BigInt::from_str_radix(hex, 16).map_err(D::Error::custom),
-                    None => BigInt::from_str(string).map_err(D::Error::custom),
+                    Some(hex) => BigInt::from_str_radix(hex, 16).map_err(Error::custom),
+                    None => BigInt::from_str(string).map_err(Error::custom),
                 }
             }
         }
@@ -705,7 +441,7 @@ pub struct AbiEntityHandler {
 impl AbiEntityHandler {
     #[wasm_bindgen(getter)]
     pub fn data(&self) -> AbiEntity {
-        JsValue::from(&self.inner).unchecked_into()
+        serialize_entity(&self.inner).unchecked_into()
     }
 
     #[wasm_bindgen(js_name = "makeDefaultState")]
@@ -784,90 +520,6 @@ pub fn make_default_state(param: &ton_abi::ParamType, name: &str) -> AbiValue {
         .set("name", name)
         .build()
         .unchecked_into()
-}
-
-impl From<&'_ custom_abi::Token> for ton_abi::Param {
-    fn from(token: &'_ custom_abi::Token) -> Self {
-        Self {
-            name: String::new(),
-            kind: token.into(),
-        }
-    }
-}
-
-impl From<&'_ custom_abi::Token> for ton_abi::ParamType {
-    fn from(token: &'_ custom_abi::Token) -> Self {
-        match token {
-            custom_abi::Token::Bool => ton_abi::ParamType::Bool,
-            custom_abi::Token::Int(size) => ton_abi::ParamType::Int(*size as usize),
-            custom_abi::Token::Uint(size) => ton_abi::ParamType::Uint(*size as usize),
-            custom_abi::Token::VarInt(size) => ton_abi::ParamType::VarInt(*size as usize),
-            custom_abi::Token::VarUint(size) => ton_abi::ParamType::VarUint(*size as usize),
-            custom_abi::Token::Address => ton_abi::ParamType::Address,
-            custom_abi::Token::Bytes => ton_abi::ParamType::Bytes,
-            custom_abi::Token::String => ton_abi::ParamType::String,
-            custom_abi::Token::Cell => ton_abi::ParamType::Cell,
-            custom_abi::Token::Token => ton_abi::ParamType::Token,
-            custom_abi::Token::Array(ty) => ton_abi::ParamType::Array(Box::new(ty.as_ref().into())),
-            custom_abi::Token::Map(key, value) => ton_abi::ParamType::Map(
-                Box::new(key.as_ref().into()),
-                Box::new(value.as_ref().into()),
-            ),
-            custom_abi::Token::Tuple(items) => ton_abi::ParamType::Tuple(
-                items
-                    .iter()
-                    .map(Self::from)
-                    .map(|kind| ton_abi::Param {
-                        name: String::new(),
-                        kind,
-                    })
-                    .collect(),
-            ),
-        }
-    }
-}
-
-pub enum Entity {
-    Empty,
-    Cell(Vec<ton_abi::Param>),
-    Function(ton_abi::Function),
-}
-
-impl From<custom_abi::Entity> for Entity {
-    fn from(entity: custom_abi::Entity) -> Self {
-        match entity {
-            custom_abi::Entity::Empty => Entity::Empty,
-            custom_abi::Entity::Cell(tokens) => {
-                Entity::Cell(tokens.iter().map(ton_abi::Param::from).collect())
-            }
-            custom_abi::Entity::Function {
-                name,
-                inputs,
-                outputs,
-                abi_version,
-            } => {
-                let inputs = inputs.iter().map(ton_abi::Param::from).collect::<Vec<_>>();
-                let outputs = outputs.iter().map(ton_abi::Param::from).collect::<Vec<_>>();
-
-                let id = calc_function_id(&get_function_signature(
-                    &name,
-                    &inputs,
-                    &outputs,
-                    abi_version,
-                ));
-
-                Entity::Function(ton_abi::Function {
-                    abi_version: abi_version.into(),
-                    name,
-                    header: Vec::new(),
-                    inputs,
-                    outputs,
-                    input_id: id & 0x7FFFFFFF,
-                    output_id: id | 0x80000000,
-                })
-            }
-        }
-    }
 }
 
 #[derive(Deserialize)]
@@ -976,54 +628,52 @@ extern "C" {
     pub type AbiEntity;
 }
 
-impl From<&'_ Entity> for JsValue {
-    fn from(entity: &'_ Entity) -> Self {
-        let (kind, info) = match entity {
-            Entity::Empty => ("empty", JsValue::null()),
-            Entity::Cell(tokens) => (
-                "plain",
-                ObjectBuilder::new()
-                    .set(
-                        "tokens",
-                        tokens
-                            .iter()
-                            .map(serialize_param)
-                            .collect::<js_sys::Array>(),
-                    )
-                    .build(),
-            ),
-            Entity::Function(function) => (
-                "function",
-                ObjectBuilder::new()
-                    .set("name", function.name.clone())
-                    .set(
-                        "inputs",
-                        function
-                            .inputs
-                            .iter()
-                            .map(serialize_param)
-                            .collect::<js_sys::Array>(),
-                    )
-                    .set(
-                        "outputs",
-                        function
-                            .outputs
-                            .iter()
-                            .map(serialize_param)
-                            .collect::<js_sys::Array>(),
-                    )
-                    .set("abiVersion", function.abi_version.major)
-                    .set("inputId", function.input_id)
-                    .set("outputId", function.output_id)
-                    .build(),
-            ),
-        };
+fn serialize_entity(entity: &Entity) -> JsValue {
+    let (kind, info) = match entity {
+        Entity::Empty => ("empty", JsValue::null()),
+        Entity::Cell(tokens) => (
+            "plain",
+            ObjectBuilder::new()
+                .set(
+                    "tokens",
+                    tokens
+                        .iter()
+                        .map(serialize_param)
+                        .collect::<js_sys::Array>(),
+                )
+                .build(),
+        ),
+        Entity::Function(function) => (
+            "function",
+            ObjectBuilder::new()
+                .set("name", function.name.clone())
+                .set(
+                    "inputs",
+                    function
+                        .inputs
+                        .iter()
+                        .map(serialize_param)
+                        .collect::<js_sys::Array>(),
+                )
+                .set(
+                    "outputs",
+                    function
+                        .outputs
+                        .iter()
+                        .map(serialize_param)
+                        .collect::<js_sys::Array>(),
+                )
+                .set("abiVersion", function.abi_version.major)
+                .set("inputId", function.input_id)
+                .set("outputId", function.output_id)
+                .build(),
+        ),
+    };
 
-        ObjectBuilder::new()
-            .set("kind", kind)
-            .set("info", info)
-            .build()
-    }
+    ObjectBuilder::new()
+        .set("kind", kind)
+        .set("info", info)
+        .build()
 }
 
 fn serialize_param(param: &ton_abi::Param) -> JsValue {
@@ -1143,7 +793,7 @@ fn make_token_value(value: &ton_abi::TokenValue) -> Result<JsValue, JsValue> {
             .iter()
             .map(|(key, value)| {
                 Result::<JsValue, JsValue>::Ok(
-                    [JsValue::from_str(key.as_str()), make_token_value(&value)?]
+                    [JsValue::from_str(key.as_str()), make_token_value(value)?]
                         .iter()
                         .collect::<js_sys::Array>()
                         .unchecked_into(),
@@ -1200,30 +850,4 @@ fn make_tokens_object(tokens: &[ton_abi::Token]) -> Result<TokensObject, JsValue
         .trust_me();
     }
     Ok(object.unchecked_into())
-}
-
-struct ObjectBuilder {
-    object: js_sys::Object,
-}
-
-impl ObjectBuilder {
-    fn new() -> Self {
-        Self {
-            object: js_sys::Object::new(),
-        }
-    }
-
-    fn set<T>(self, key: &str, value: T) -> Self
-    where
-        JsValue: From<T>,
-    {
-        let key = JsValue::from_str(key);
-        let value = JsValue::from(value);
-        js_sys::Reflect::set(&self.object, &key, &value).trust_me();
-        self
-    }
-
-    fn build(self) -> JsValue {
-        JsValue::from(self.object)
-    }
 }

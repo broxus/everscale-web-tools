@@ -34,6 +34,8 @@ ton_block = { git = "https://github.com/broxus/ton-labs-block.git" }
 ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
 ton_vm = { git = "https://github.com/broxus/ton-labs-vm.git" }
 
+abi-parser = { path = "../abi-parser" }
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 js-sys = "0.3"
