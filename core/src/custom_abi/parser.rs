@@ -174,11 +174,70 @@ where
                     whitespace0(ctx, iter); // \s*
                     tag(ctx, iter, lexer::TokenKind::Comma)?; // ,
                     whitespace0(ctx, iter); // \s*
-                    let value = Box::new(single_type(ctx, iter)?); // <ident>
+
+                    let mut tokens: Vec<Vec<Token>> = vec![];
+                    let value = loop {
+                        match iter.peek().cloned() {
+                            Some(lexer::Token { kind, len }) => match kind {
+                                lexer::TokenKind::Ident => {
+                                    if let Some(tokens) = tokens.last_mut() {
+                                        tokens.push(single_type(ctx, iter)?);
+                                        skip_delim_or_until_paren(ctx, iter)?;
+                                    } else {
+                                        break single_type(ctx, iter)?;
+                                    }
+                                }
+                                lexer::TokenKind::OpenParen => {
+                                    match tokens.len() {
+                                        0..=MAX_TUPLE_LEVEL => tokens.push(Vec::new()),
+                                        depth => {
+                                            return Err(ParserError::TooDeepNesting {
+                                                depth,
+                                                position: ctx.len_consumed,
+                                            });
+                                        }
+                                    }
+
+                                    skip_token(ctx, iter, len);
+                                    whitespace0(ctx, iter);
+                                }
+                                lexer::TokenKind::CloseParen => {
+                                    let mut token = match tokens.pop() {
+                                        Some(tuple) if !tuple.is_empty() => Token::Tuple(tuple),
+                                        _ => return Err(ctx.err_unexpected_token(len)),
+                                    };
+
+                                    skip_token(ctx, iter, len);
+                                    whitespace0(ctx, iter);
+                                    if optional_brackets(ctx, iter)? {
+                                        token = Token::Array(Box::new(token));
+                                    }
+
+                                    match tokens.last_mut() {
+                                        Some(tokens) => {
+                                            tokens.push(token);
+                                            skip_delim_or_until_paren(ctx, iter)?;
+                                        }
+                                        None => break token,
+                                    }
+                                }
+                                lexer::TokenKind::Whitespace => {
+                                    whitespace0(ctx, iter);
+                                }
+                                _ => return Err(ctx.err_unexpected_token(len)),
+                            },
+                            None => {
+                                return Err(ParserError::UnexpectedEof {
+                                    position: ctx.len_consumed,
+                                })
+                            }
+                        }
+                    };
+
                     whitespace0(ctx, iter); // \s*
                     tag(ctx, iter, lexer::TokenKind::CloseParen)?; // )
 
-                    Token::Map(key, value)
+                    Token::Map(key, Box::new(value))
                 }
                 None => return Err(ctx.err_unexpected_token(len)),
             };
