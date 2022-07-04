@@ -23,7 +23,7 @@ sha2 = "0.9"
 syn = "1.0"
 getrandom = { version = "0.2", features = ["js"] }
 thiserror = "1.0"
-wasm-bindgen = { version = "0.2.76", features = ["serde-serialize"] }
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"
 
 ed25519-dalek = { git = "https://github.com/broxus/ed25519-dalek.git" }

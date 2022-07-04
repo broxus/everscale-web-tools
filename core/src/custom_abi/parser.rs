@@ -24,7 +24,7 @@ where
             lexer::TokenKind::Ident => {
                 let ident = ctx.text(len).to_owned();
 
-                if parse_ident(ctx.len_consumed, &ident)?.is_some() {
+                if parse_ident(ctx.len_consumed, &ident)?.is_some() || parse_map(&ident) {
                     types_list(&mut ctx, &mut iter).map(Entity::Cell)?
                 } else {
                     skip_token(&mut ctx, &mut iter, len);
@@ -107,16 +107,23 @@ where
                         break;
                     }
 
-                    match tokens.pop() {
-                        Some(tuple) if !tuple.is_empty() => match tokens.last_mut() {
-                            Some(tokens) => tokens.push(Token::Tuple(tuple)),
-                            None => tokens.push(vec![Token::Tuple(tuple)]),
-                        },
+                    let mut token = match tokens.pop() {
+                        Some(tuple) if !tuple.is_empty() => Token::Tuple(tuple),
                         Some(_) => return Err(ctx.err_unexpected_token(len)),
-                        _ => unreachable!(),
-                    }
+                        None => break,
+                    };
 
                     skip_token(ctx, iter, len);
+                    whitespace0(ctx, iter);
+                    if optional_brackets(ctx, iter)? {
+                        token = Token::Array(Box::new(token));
+                    }
+
+                    match tokens.last_mut() {
+                        Some(tokens) => tokens.push(token),
+                        None => tokens.push(vec![token]),
+                    }
+
                     skip_delim_or_until_paren(ctx, iter)?;
                 }
                 lexer::TokenKind::Whitespace => {
@@ -145,11 +152,37 @@ where
             len,
         }) => {
             let token = match parse_ident(ctx.len_consumed, &ctx.text(len))? {
-                Some(ident) => ident.into(),
+                Some(ident) => {
+                    let token = ident.into();
+                    skip_token(ctx, iter, len);
+                    token
+                }
+                None if parse_map(&ctx.text(len)) => {
+                    skip_token(ctx, iter, len); // map
+                    whitespace0(ctx, iter); // \s*
+                    tag(ctx, iter, lexer::TokenKind::OpenParen)?; // (
+                    whitespace0(ctx, iter); // \s*
+                    let key = match single_type(ctx, iter)? {
+                        key @ (Token::Address | Token::Int(_) | Token::Uint(_)) => Box::new(key),
+                        key => {
+                            return Err(ParserError::InvalidKeyType {
+                                position: ctx.len_consumed,
+                                token: format!("{key:?}"),
+                            })
+                        }
+                    };
+                    whitespace0(ctx, iter); // \s*
+                    tag(ctx, iter, lexer::TokenKind::Comma)?; // ,
+                    whitespace0(ctx, iter); // \s*
+                    let value = Box::new(single_type(ctx, iter)?); // <ident>
+                    whitespace0(ctx, iter); // \s*
+                    tag(ctx, iter, lexer::TokenKind::CloseParen)?; // )
+
+                    Token::Map(key, value)
+                }
                 None => return Err(ctx.err_unexpected_token(len)),
             };
 
-            skip_token(ctx, iter, len);
             Ok(if optional_brackets(ctx, iter)? {
                 Token::Array(Box::new(token))
             } else {
@@ -171,6 +204,13 @@ fn parse_ident(position: usize, ident: &str) -> Result<Option<Ident>, ParserErro
         "gram" => Ident::Gram,
         _ => return parse_ident_integer(position, ident),
     }))
+}
+
+fn parse_map(ident: &str) -> bool {
+    match ident {
+        "map" | "mapping" => true,
+        _ => false,
+    }
 }
 
 fn parse_ident_integer(position: usize, ident: &str) -> Result<Option<Ident>, ParserError> {
@@ -400,4 +440,6 @@ pub enum ParserError {
     TooDeepNesting { depth: usize, position: usize },
     #[error("Invalid ABI version `{}` at {}", .version, .position)]
     InvalidAbiVersion { version: u8, position: usize },
+    #[error("Invalid mapping key `{}` at {}", .token, .position)]
+    InvalidKeyType { position: usize, token: String },
 }

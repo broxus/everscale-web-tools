@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import classNames from 'classnames';
 
 import * as core from '../../../core/pkg';
 
 import './style.scss';
 
-type AbiValueData<K extends string> = core.AbiValue extends core.AbiValueWrapper<K, infer T> ? T : never;
+type AbiValueData<K extends core.AbiValue['type']> = Extract<core.AbiValue, { type: K }>['data'];
 
 type HandlerArgs<K extends core.AbiValue['type']> = {
   abi: core.AbiParamType;
@@ -13,7 +13,7 @@ type HandlerArgs<K extends core.AbiValue['type']> = {
   onChange: (newData: AbiValueData<K>) => void;
 };
 
-type Handler = (args: HandlerArgs<core.AbiValue['type']>) => React.ReactNode;
+type Handler<T extends core.AbiValue['type'] = core.AbiValue['type']> = (args: HandlerArgs<T>) => React.ReactNode;
 
 const makeTextField: Handler = ({ value, onChange }): React.ReactNode => (
   <div className="control">
@@ -115,8 +115,76 @@ const makeArrayField: Handler = ({ abi, value, onChange }): React.ReactNode => {
   );
 };
 
+const makeMapField: Handler<'map'> = ({ abi, onChange, value }) => {
+  if (abi.kind !== 'map') return null;
+
+  const defaultKey = (abi.info as any).defaultKey as core.AbiValue;
+  const defaultValue = (abi.info as any).defaultValue as core.AbiValue;
+
+  const findRecordByKey = (someKey: core.AbiValue): [[core.AbiValue, core.AbiValue] | undefined, number] => {
+    const index = value.findIndex(([key]) => key === someKey);
+    const tuple = value[index];
+    return [tuple, index];
+  };
+
+  function onChangeKey(newKey: any, oldKey: any) {
+    const [record] = findRecordByKey(oldKey);
+    if (!record) return console.warn('Cant find record to change');
+
+    record[0] = newKey;
+    onChange(value);
+  }
+  function onChangeValue(newData: any, key: any) {
+    const [record] = findRecordByKey(key);
+    if (!record) return console.warn('Cant find record to change');
+
+    record[1] = newData;
+    onChange(value);
+  }
+
+  function onDelete(key: any) {
+    const [, indexToDelete] = findRecordByKey(key);
+    const updatedValues = value.filter((_, index) => index !== indexToDelete);
+    onChange(updatedValues);
+  }
+
+  return (
+    <>
+      {value.map(([key, value], index) => {
+        return (
+          <div key={index} className="is-flex is-flex-direction-row">
+            <EntityBuilderItem
+              className="is-flex-grow-1 is-key"
+              abi={{ name: 'map-key', type: abi.info.key }}
+              value={key}
+              onChange={newKey => onChangeKey(newKey, key)}
+              onDelete={() => onDelete(key)}
+            />
+            <EntityBuilderItem
+              className="mb-3 ml-1 is-value is-flex-grow-5"
+              abi={{ name: 'map-value', type: abi.info.value }}
+              value={value}
+              onChange={newValue => onChangeValue(newValue, key)}
+            />
+          </div>
+        );
+      })}
+      <button
+        className="button is-fullwidth is-small"
+        onClick={() => {
+          const clone = JSON.parse(JSON.stringify(defaultValue));
+          value.push([defaultKey, clone]);
+          onChange(value);
+        }}
+      >
+        Add entry
+      </button>
+    </>
+  );
+};
+
 const HANDLERS: {
-  [K in core.AbiValue['type']]: Handler;
+  [K in core.AbiValue['type']]: Handler<any>;
 } = {
   uint: makeTextField,
   int: makeTextField,
@@ -129,7 +197,8 @@ const HANDLERS: {
   address: makeTextAreaField,
   bytes: makeTextAreaField,
   string: makeTextAreaField,
-  pubkey: makeTextAreaField
+  pubkey: makeTextAreaField,
+  map: makeMapField
 };
 
 const getAbiTypeSignature = (param: core.AbiParamType): string => {
@@ -151,6 +220,7 @@ const getAbiTypeSignature = (param: core.AbiParamType): string => {
 type EntityBuilderItemProps = {
   abi: core.AbiParam;
   value: core.AbiValue;
+  className?: string;
   onChange?: (data: core.AbiValue) => void;
   onDelete?: () => void;
 };
@@ -161,7 +231,7 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
   }
 
   render() {
-    const { abi, value, onChange, onDelete } = this.props;
+    const { abi, value, className, onChange, onDelete } = this.props;
 
     const type = abi.type;
 
@@ -170,6 +240,7 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
       if (handler == null) {
         return 'Unsupported';
       }
+
       return handler({
         abi: abi.type,
         value: value.data,
@@ -186,7 +257,7 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
     const name = `${abi.name != '' ? `${abi.name}: ` : ''}${getAbiTypeSignature(type)}`;
 
     return (
-      <div className="field box p-3">
+      <div className={classNames('field box p-3', className)}>
         {onDelete == null ? (
           <span className={classNames('tag', { 'mb-3': isGroup })}>{name}</span>
         ) : (

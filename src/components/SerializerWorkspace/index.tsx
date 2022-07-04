@@ -54,8 +54,10 @@ export class SerializerWorkspace extends React.Component<{}, SerializerWorkspace
 
     try {
       const customAbi = core.parseAbi(abiInput);
+      console.log(customAbi);
       this.setNewAbi(customAbi);
     } catch (e) {
+      console.error(e);
       this.clear(() =>
         this.setState({
           error: e.toString()

@@ -1,17 +1,16 @@
 @import "../../styles/constants";
 
-.entity-builder-item {
-  display: flex;
-  flex-direction: column;
-  background-blend-mode: saturation;
+.wide {
+  width: 100%;
+}
 
-  span {
-    margin-left: $input-border-width;
-    margin-bottom: 0.5em;
-    font-weight: bold;
+.field {
+  &.is-key {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
   }
-
-  input[type="text"] {
-    margin-bottom: 0;
+  &.is-value {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
   }
 }
