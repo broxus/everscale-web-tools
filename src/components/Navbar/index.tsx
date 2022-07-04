@@ -60,6 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <NavbarItem path="/visualizer">Visualizer</NavbarItem>
           <NavbarItem path="/serializer">Serializer</NavbarItem>
           <NavbarItem path="/signer">Signer</NavbarItem>
+          <NavbarItem path="/debugger">Debugger</NavbarItem>
         </div>
         <div className="navbar-end">
           <div className="navbar-item">

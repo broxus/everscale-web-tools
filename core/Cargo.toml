@@ -25,16 +25,14 @@ getrandom = { version = "0.2", features = ["js"] }
 thiserror = "1.0"
 wasm-bindgen = { version = "0.2.76", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"
-wee_alloc = "0.4"
 
 ed25519-dalek = { git = "https://github.com/broxus/ed25519-dalek.git" }
 
 ton_abi = { git = "https://github.com/broxus/ton-labs-abi.git" }
 ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
 ton_block = { git = "https://github.com/broxus/ton-labs-block.git" }
-
-[target."cfg(debug_assertions)".dependencies]
-console_error_panic_hook = "0.1"
+ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
+ton_vm = { git = "https://github.com/broxus/ton-labs-vm.git" }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

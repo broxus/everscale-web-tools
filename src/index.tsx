@@ -14,6 +14,7 @@ import { ExecutorWorkspace } from './components/ExecutorWorkspace';
 import { VisualizerWorkspace } from './components/VisualizerWorkspace';
 import { SerializerWorkspace } from './components/SerializerWorkspace';
 import { SignerWorkspace } from './components/SignerWorkspace';
+import { DebuggerWorkspace } from './components/DebuggerWorkspace';
 
 export const ever = new ProviderRpcClient();
 
@@ -32,9 +33,9 @@ const disconnectFromWallet = async () => {
 };
 
 const useQuery = () => {
-  const {search} = useLocation();
+  const { search } = useLocation();
   return React.useMemo(() => new URLSearchParams(search), [search]);
-}
+};
 
 const walletMutex: Mutex = new Mutex();
 let walletSubscriber: Subscriber | undefined = undefined;
@@ -156,6 +157,9 @@ const App: React.FC = () => {
         </Route>
         <Route key="signer" exact path="/signer">
           <SignerWorkspace signData={signData} />
+        </Route>
+        <Route key="debugger" exact path="/debugger">
+          <DebuggerWorkspace />
         </Route>
       </Switch>
     </>
