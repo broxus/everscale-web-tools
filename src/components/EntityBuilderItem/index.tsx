@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import classNames from 'classnames';
 
-import * as core from '../../../core/pkg';
+import * as core from '@core';
 
 import './style.scss';
 

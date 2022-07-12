@@ -3,7 +3,7 @@ import { ContractState, Permissions, AbiParam } from 'everscale-inpage-provider'
 import { convertError, convertFromTons } from '../../common';
 import classNames from 'classnames';
 
-import * as core from '../../../core/pkg';
+import * as core from '@core';
 import { FunctionInput } from './FunctionInput';
 import { ever } from '../../';
 
@@ -110,7 +110,6 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi, prelo
     setError(undefined);
     const text = localStorage.getItem(name);
     if (text == null) {
-      console.log('Empty');
       return;
     }
 
@@ -118,7 +117,7 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi, prelo
       changeAbi(name, text);
       setSelectedAbi(name);
       setAbiSelectorVisible(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
     }
   };

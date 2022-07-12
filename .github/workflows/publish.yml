@@ -10,14 +10,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+
+      - name: Install custom wasm-pack
+        run: cargo install --git https://github.com/broxus/wasm-pack.git
+
+      - name: Install NodeJS
+        uses: actions/setup-node@v2
         with:
           node-version: '16.x'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
-      - run: npm install
-      - run: npm run build
-      - run: |
-          git remote set-url origin https://git:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          npx gh-pages --dist dist --user "github-actions-bot <support+actions@github.com>"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Patch wasm-opt
+        run: |
+          mkdir -p ~/.cache/.wasm-pack/wasm-opt-32d2875cd5f86da0/
+          cp $(which wasm-opt) ~/.cache/.wasm-pack/wasm-opt-32d2875cd5f86da0/wasm-opt
+
+      - name: Build wasm
+        run: npm run wasm
+
+      - name: Build app
+        run: npm run build
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist

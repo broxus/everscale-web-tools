@@ -1,7 +1,7 @@
 import React from 'react';
 import classNames from 'classnames';
 
-import * as core from '../../../core/pkg';
+import * as core from '@core';
 
 export type VisualizerWorkspaceState = {
   input: string;
@@ -30,7 +30,7 @@ export class VisualizerWorkspace extends React.Component<{}, VisualizerWorkspace
         decoded,
         error: null
       });
-    } catch (e) {
+    } catch (e: any) {
       this.setState({
         input: event.target.value,
         decoded: null,

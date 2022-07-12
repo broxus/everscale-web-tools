@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
-import * as core from '../../../core/pkg';
+import * as core from '@core';
 
 import './style.scss';
 import classNames from 'classnames';

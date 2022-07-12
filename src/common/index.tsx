@@ -1,10 +1,9 @@
 import Decimal from 'decimal.js';
-import moment from 'moment';
 import { Address } from 'everscale-inpage-provider';
 
 window.ObjectExt = { keys: Object.keys };
 
-const addressRegex = /^(?:-1|0):[0-9a-fA-F]{64}$/;
+const addressRegex = /^(?:-1|0):[\da-fA-F]{64}$/;
 
 export const convertAddress = (address: string | undefined) =>
   address ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : '';
@@ -48,7 +47,7 @@ export const accountExplorerLink = (network: string, address: Address) => {
 };
 
 export const convertDate = (timestamp: number) => {
-  return moment(timestamp * 1000).format('YYYY-MM-DD HH:mm:ss');
+  return new Date(timestamp * 1000).toLocaleDateString();
 };
 
 export const convertError = (error: any) => {

@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { Permissions, ProviderRpcClient, Subscriber } from 'everscale-inpage-provider';
-import { BrowserRouter as Router, Switch, Route, Redirect, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Mutex } from '@broxus/await-semaphore';
+import init from '@core';
+import './common';
 
 import './styles/main.scss';
-
-import init from '../core/pkg';
-import './common';
 
 import { Navbar } from './components/Navbar';
 import { ExecutorWorkspace } from './components/ExecutorWorkspace';
@@ -136,45 +135,39 @@ const App: React.FC = () => {
         onChangeAccount={changeAccount}
         onDisconnect={disconnectFromWallet}
       />
-      <Switch>
-        <Route exact path="/">
-          <Redirect to="/executor" />
-        </Route>
-        <Route key="executor" exact path="/executor">
-          <ExecutorWorkspace
-            hasTonProvider={hasTonProvider}
-            networkGroup={networkGroup}
-            walletAccount={walletAccount}
-            selectedAddress={query.get('addr') || undefined}
-            selectedAbi={query.get('abi') || undefined}
-          />
-        </Route>
-        <Route key="visualizer" exact path="/visualizer">
-          <VisualizerWorkspace />
-        </Route>
-        <Route key="serializer" exact path="/serializer">
-          <SerializerWorkspace />
-        </Route>
-        <Route key="signer" exact path="/signer">
-          <SignerWorkspace signData={signData} />
-        </Route>
-        <Route key="debugger" exact path="/debugger">
-          <DebuggerWorkspace />
-        </Route>
-      </Switch>
+      <Routes>
+        <Route path="/" element={<Navigate to="/executor" />} />
+        <Route
+          key="executor"
+          path="/executor"
+          element={
+            <ExecutorWorkspace
+              hasTonProvider={hasTonProvider}
+              networkGroup={networkGroup}
+              walletAccount={walletAccount}
+              selectedAddress={query.get('addr') || undefined}
+              selectedAbi={query.get('abi') || undefined}
+            />
+          }
+        />
+        <Route key="visualizer" path="/visualizer" element={<VisualizerWorkspace />} />
+        <Route key="serializer" path="/serializer" element={<SerializerWorkspace />} />
+        <Route key="signer" path="/signer" element={<SignerWorkspace signData={signData} />} />
+        <Route key="debugger" path="/debugger" element={<DebuggerWorkspace />} />
+      </Routes>
     </>
   );
 };
 
-(async () => {
-  await init();
-
-  ReactDOM.render(
+const initPromise = init();
+const container = document.getElementById('root');
+const root = createRoot(container!);
+initPromise.then(() => {
+  root.render(
     <React.StrictMode>
-      <Router>
+      <BrowserRouter>
         <App />
-      </Router>
-    </React.StrictMode>,
-    document.getElementById('root')
+      </BrowserRouter>
+    </React.StrictMode>
   );
-})();
+});

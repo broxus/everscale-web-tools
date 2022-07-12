@@ -1,7 +1,7 @@
 import React from 'react';
 import classNames from 'classnames';
 
-import * as core from '../../../core/pkg';
+import * as core from '@core';
 
 import { EntityBuilder } from '../EntityBuilder';
 
@@ -54,10 +54,8 @@ export class SerializerWorkspace extends React.Component<{}, SerializerWorkspace
 
     try {
       const customAbi = core.parseAbi(abiInput);
-      console.log(customAbi);
       this.setNewAbi(customAbi);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
       this.clear(() =>
         this.setState({
           error: e.toString()
@@ -115,7 +113,7 @@ const prettyPrint = (text: string) => {
   try {
     const parsed = JSON.parse(text);
     return JSON.stringify(parsed, undefined, 4);
-  } catch (e) {
+  } catch (e: any) {
     return text;
   }
 };

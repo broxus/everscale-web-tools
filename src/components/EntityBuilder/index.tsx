@@ -1,6 +1,6 @@
 import React from 'react';
 
-import * as core from '../../../core/pkg';
+import * as core from '@core';
 
 import { EntityBuilderItem } from '../EntityBuilderItem';
 
@@ -30,7 +30,7 @@ export class EntityBuilder extends React.Component<EntityBuilderProps, EntityBui
     let error, output;
     try {
       output = core.encodeAbiEntity(props.handler, values);
-    } catch (e) {
+    } catch (e: any) {
       error = e.toString();
     }
 
@@ -39,12 +39,6 @@ export class EntityBuilder extends React.Component<EntityBuilderProps, EntityBui
       output,
       error
     };
-  }
-
-  componentDidUpdate(prevProps: Readonly<EntityBuilderProps>) {
-    if (prevProps.abi != this.props.abi) {
-      console.log(prevProps, this.props);
-    }
   }
 
   updateOutput = (value: core.AbiValue, i: number) => {
@@ -57,7 +51,7 @@ export class EntityBuilder extends React.Component<EntityBuilderProps, EntityBui
     let error, output;
     try {
       output = core.encodeAbiEntity(handler, newValues);
-    } catch (e) {
+    } catch (e: any) {
       error = e.toString();
     }
 

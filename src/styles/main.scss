@@ -8,13 +8,13 @@ $family-sans-serif: 'PT Root UI', -apple-system, BlinkMacSystemFont, 'Segoe UI',
 sans-serif;
 $navbar-item-active-color: black;
 
-@import "~bulma/bulma";
+@import "bulma/bulma";
 
-@import "~@creativebulma/bulma-divider";
+@import "@creativebulma/bulma-divider";
 
-$fa-font-path: '~@fortawesome/fontawesome-free/webfonts';
-@import '~@fortawesome/fontawesome-free/scss/fontawesome';
-@import '~@fortawesome/fontawesome-free/scss/solid';
+$fa-font-path: '@fortawesome/fontawesome-free/webfonts';
+@import '@fortawesome/fontawesome-free/scss/fontawesome';
+@import '@fortawesome/fontawesome-free/scss/solid';
 
 html {
     height: 100%;

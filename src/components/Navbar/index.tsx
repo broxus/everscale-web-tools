@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
 import classNames from 'classnames';
 import { Link, useLocation } from 'react-router-dom';
 import { Address } from 'everscale-inpage-provider';
-import { convertAddress, convertTons } from '../../common';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
+
+import { convertAddress, convertTons } from '../../common';
 
 type NavbarItemProps = {
   path: string;
 };
 
-const NavbarItem: React.FC<NavbarItemProps> = ({ path, children }) => {
+const NavbarItem: React.FC<PropsWithChildren<NavbarItemProps>> = ({ path, children }) => {
   const { pathname } = useLocation();
   const isActive = path == pathname;
 

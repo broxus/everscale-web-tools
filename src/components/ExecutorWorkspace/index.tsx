@@ -127,7 +127,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({
               });
 
               (transaction as any).parsedEventsData = parsedEvents.length > 0 ? parsedEvents : undefined;
-            } catch (e) {}
+            } catch (e: any) {}
           })
         );
         invalidateTransactions();

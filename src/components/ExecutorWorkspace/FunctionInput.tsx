@@ -1,6 +1,6 @@
 import React from 'react';
 
-import * as core from '../../../core/pkg';
+import * as core from '@core';
 
 import { EntityBuilderItem } from '../EntityBuilderItem';
 

@@ -21,7 +21,7 @@ export const SignerWorkspace: React.FC<SignerWorkspaceProps> = ({ signData }) =>
     try {
       const output = await signData(data);
       setOutput(JSON.stringify(output));
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       setError(convertError(e.message));
     } finally {
