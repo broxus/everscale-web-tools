@@ -21,6 +21,9 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
 
+      - name: Setup rust cache
+        uses: Swatinem/rust-cache@v1
+
       - name: Install custom wasm-pack
         run: cargo install --git https://github.com/broxus/wasm-pack.git
 
@@ -47,6 +50,9 @@ jobs:
 
       - name: Build app
         run: npm run build
+
+      - name: Set CNAME
+        run: echo 'ever.bytie.moe' > ./dist/CNAME
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
