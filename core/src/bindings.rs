@@ -252,6 +252,9 @@ fn parse_abi_values(abi: &[ton_abi::Param], values: JsValue) -> Result<Vec<ton_a
                         .map(Box::new),
                 )
             }
+            (ton_abi::ParamType::Ref(param_type), value) => ton_abi::TokenValue::Ref(
+                parse_token_value((param_type.as_ref(), value)).map(Box::new)?,
+            ),
             _ => return Err(AbiError::InvalidType.into()),
         })
     }
@@ -563,13 +566,15 @@ export type AbiValue =
   | AbiValueWrapper<'varint', string>
   | AbiValueWrapper<'bool', boolean>
   | AbiValueWrapper<'tuple', AbiValue[]>
-  | AbiValueWrapper<'map', [AbiValue, AbiValue][]>
+  | AbiValueWrapper<'map', (readonly [AbiValue, AbiValue])[]>
   | AbiValueWrapper<'array', AbiValue[]>
   | AbiValueWrapper<'cell', string>
   | AbiValueWrapper<'address', string>
   | AbiValueWrapper<'bytes', string>
   | AbiValueWrapper<'string', string>
-  | AbiValueWrapper<'pubkey', string | undefined>;
+  | AbiValueWrapper<'pubkey', string | undefined>
+  | AbiValueWrapper<'optional', AbiValue | undefined>
+  | AbiValueWrapper<'ref', AbiValue>;
 
 export type EnumWrapper<K extends string, I> = { kind: K, info: I };
 
@@ -610,7 +615,9 @@ export type AbiParamType =
   | EnumWrapper<'gram', null>
   | EnumWrapper<'time', null>
   | EnumWrapper<'expire', null>
-  | EnumWrapper<'publicKey', null>;
+  | EnumWrapper<'publicKey', null>
+  | EnumWrapper<'optional', { type: AbiParamType, defaultValue: AbiParamType }>
+  | EnumWrapper<'ref', AbiParamType>;
 "#;
 
 #[wasm_bindgen]
@@ -749,7 +756,13 @@ fn serialize_param_type(param: &ton_abi::ParamType, name: &str) -> JsValue {
         ton_abi::ParamType::Time => ("time", JsValue::null()),
         ton_abi::ParamType::Expire => ("expire", JsValue::null()),
         ton_abi::ParamType::PublicKey => ("publicKey", JsValue::null()),
-        ton_abi::ParamType::Optional(param) => ("optional", serialize_param_type(param, name)),
+        ton_abi::ParamType::Optional(param) => (
+            "optional",
+            ObjectBuilder::new()
+                .set("type", serialize_param_type(param, name))
+                .set("defaultValue", make_default_state(param, name))
+                .build(),
+        ),
         ton_abi::ParamType::Ref(param) => ("ref", serialize_param_type(param, name)),
     };
 

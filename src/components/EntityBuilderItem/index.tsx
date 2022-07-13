@@ -15,7 +15,7 @@ type HandlerArgs<K extends core.AbiValue['type']> = {
 
 type Handler<T extends core.AbiValue['type'] = core.AbiValue['type']> = (args: HandlerArgs<T>) => React.ReactNode;
 
-const makeTextField: Handler = ({ value, onChange }): React.ReactNode => (
+const makeTextField: Handler<'uint' | 'int' | 'varint' | 'varuint'> = ({ value, onChange }): React.ReactNode => (
   <div className="control">
     <input
       className="input is-small"
@@ -29,7 +29,10 @@ const makeTextField: Handler = ({ value, onChange }): React.ReactNode => (
   </div>
 );
 
-const makeTextAreaField: Handler = ({ value, onChange }): React.ReactNode => (
+const makeTextAreaField: Handler<'cell' | 'address' | 'bytes' | 'string' | 'pubkey'> = ({
+  value,
+  onChange
+}): React.ReactNode => (
   <div className="control">
     <textarea
       className="textarea is-small"
@@ -43,7 +46,7 @@ const makeTextAreaField: Handler = ({ value, onChange }): React.ReactNode => (
   </div>
 );
 
-const makeBoolField: Handler = ({ value, onChange }): React.ReactNode => (
+const makeBoolField: Handler<'bool'> = ({ value, onChange }): React.ReactNode => (
   <div className="control is-unselectable">
     <label className="checkbox">
       <input
@@ -59,11 +62,11 @@ const makeBoolField: Handler = ({ value, onChange }): React.ReactNode => (
   </div>
 );
 
-const makeTupleField: Handler = ({ abi, value, onChange }): React.ReactNode => {
+const makeTupleField: Handler<'tuple'> = ({ abi, value, onChange }): React.ReactNode => {
   if (abi.kind !== 'tuple' || value == null) {
     return null;
   }
-  return abi.info.types.map((abi, i) => {
+  return abi.info.types.map((abi: core.AbiParam, i: number) => {
     return (
       <EntityBuilderItem
         key={i}
@@ -78,7 +81,7 @@ const makeTupleField: Handler = ({ abi, value, onChange }): React.ReactNode => {
   });
 };
 
-const makeArrayField: Handler = ({ abi, value, onChange }): React.ReactNode => {
+const makeArrayField: Handler<'array'> = ({ abi, value, onChange }): React.ReactNode => {
   if (abi.kind !== 'array' || value == null) {
     return null;
   }
@@ -202,16 +205,20 @@ const HANDLERS: {
 };
 
 const getAbiTypeSignature = (param: core.AbiParamType): string => {
-  if (param.kind == 'uint' || param.kind == 'int' || param.kind == 'varuint' || param.kind == 'varint') {
+  if (param.kind === 'uint' || param.kind === 'int' || param.kind === 'varuint' || param.kind === 'varint') {
     return `${param.kind}${param.info.size}`;
-  } else if (param.kind == 'array') {
+  } else if (param.kind === 'array') {
     return `${getAbiTypeSignature(param.info.type)}[]`;
-  } else if (param.kind == 'fixedarray') {
+  } else if (param.kind === 'fixedarray') {
     return `${getAbiTypeSignature(param.info.type)}[${param.info.size}]`;
-  } else if (param.kind == 'fixedbytes') {
+  } else if (param.kind === 'fixedbytes') {
     return `${param.kind}[${param.info.size}]`;
-  } else if (param.kind == 'map') {
+  } else if (param.kind === 'map') {
     return `${param.kind}(${getAbiTypeSignature(param.info.key)}, ${getAbiTypeSignature(param.info.value)})`;
+  } else if (param.kind === 'optional') {
+    return `${param.kind}(${getAbiTypeSignature(param.info.type)})`;
+  } else if (param.kind === 'ref') {
+    return `${param.kind}(${getAbiTypeSignature(param.info)})`;
   } else {
     return param.kind;
   }
@@ -233,32 +240,60 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
   render() {
     const { abi, value, className, onChange, onDelete } = this.props;
 
-    const type = abi.type;
+    const name = `${abi.name != '' ? `${abi.name}: ` : ''}${getAbiTypeSignature(abi.type)}`;
+    const isGroup = abi.type.kind === 'tuple';
+    const isOptional = abi.type.kind === 'optional';
+    const isRef = abi.type.kind === 'ref';
+
+    // Unwrap inner type
+    const innerType = isRef ? abi.type.info : isOptional ? abi.type.info.type : abi.type;
+    const innerValue = isOptional ? value.data : value;
+
+    const wrapValue = (data: any) =>
+      isOptional
+        ? {
+            type: 'optional',
+            data
+          }
+        : data;
 
     const showInput = () => {
-      const handler = HANDLERS[value.type];
+      const handler = HANDLERS[innerValue.type];
       if (handler == null) {
         return 'Unsupported';
       }
 
       return handler({
-        abi: abi.type,
-        value: value.data,
+        abi: innerType,
+        value: innerValue.data,
         onChange: (data: any) =>
-          onChange?.({
-            type: value.type,
-            data
-          } as any)
+          onChange?.(
+            wrapValue({
+              type: innerValue.type,
+              data
+            })
+          )
       });
     };
 
-    const isGroup = abi.type.kind == 'tuple';
-
-    const name = `${abi.name != '' ? `${abi.name}: ` : ''}${getAbiTypeSignature(type)}`;
-
     return (
       <div className={classNames('field box p-3', className)}>
-        {onDelete == null ? (
+        {isOptional ? (
+          <div className="tags has-addons mb-0">
+            <span className="tag mb-0">{name}</span>
+            <label className="tag mb-0 checkbox">
+              <input
+                type="checkbox"
+                value={(innerValue == null) as any}
+                onChange={() =>
+                  onChange?.(
+                    wrapValue(innerValue == null ? JSON.parse(JSON.stringify(abi.type.info.defaultValue)) : undefined)
+                  )
+                }
+              />
+            </label>
+          </div>
+        ) : onDelete == null ? (
           <span className={classNames('tag', { 'mb-3': isGroup })}>{name}</span>
         ) : (
           <div className="tags has-addons mb-0">
@@ -266,7 +301,7 @@ export class EntityBuilderItem extends React.Component<EntityBuilderItemProps> {
             <a className="tag is-delete mb-0" onClick={onDelete} />
           </div>
         )}
-        {showInput()}
+        {innerValue != null && showInput()}
       </div>
     );
   }
