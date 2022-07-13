@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install binaryen
+        run: sudo apt install binaryen
+
       - name: Patch wasm-opt
         run: |
           mkdir -p ~/.cache/.wasm-pack/wasm-opt-32d2875cd5f86da0/
