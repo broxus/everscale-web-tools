@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::convert::TryFrom;
 
 use abi_parser::Entity;
 use anyhow::Result;
@@ -33,7 +34,15 @@ pub fn decode(boc: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen(js_name = "validateContractAbi")]
 pub fn validate_contract_abi(input: &str) -> Result<ValidatedAbi, JsValue> {
-    let contract = ton_abi::Contract::load(input).handle_error()?;
+    let contract =
+        serde_json::from_str::<ton_abi::contract::SerdeContract>(input).handle_error()?;
+
+    let ordered_functinos = contract
+        .functions
+        .iter()
+        .map(|f| f.name.clone())
+        .collect::<Vec<_>>();
+    let mut contract = ton_abi::Contract::try_from(contract).handle_error()?;
 
     let events = contract
         .events
@@ -41,16 +50,14 @@ pub fn validate_contract_abi(input: &str) -> Result<ValidatedAbi, JsValue> {
         .map(JsValue::from)
         .collect::<js_sys::Array>();
 
-    let (functions, handlers): (js_sys::Array, js_sys::Array) = contract
-        .functions
-        .into_iter()
-        .map(|(name, function)| {
-            (
-                JsValue::from(name),
-                JsValue::from(AbiFunctionHandler { inner: function }),
-            )
-        })
-        .unzip();
+    let functions = js_sys::Array::new();
+    let handlers = js_sys::Array::new();
+    for name in ordered_functinos {
+        if let Some(function) = contract.functions.remove(&name) {
+            functions.push(&JsValue::from(name));
+            handlers.push(&JsValue::from(AbiFunctionHandler { inner: function }));
+        }
+    }
 
     Ok(ObjectBuilder::new()
         .set("functionHandlers", handlers)

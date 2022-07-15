@@ -43,12 +43,37 @@ enum LoadAbiType {
 }
 
 type AbiFormProps = {
+  address?: string;
   inProgress: boolean;
   onChangeAbi: (abi: ParsedAbi) => void;
   preloadAbi?: string;
 };
 
-export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi, preloadAbi }) => {
+const parseAbi = (text: string): ParsedAbi => {
+  const { functionHandlers, functionNames, eventNames } = core.validateContractAbi(text);
+
+  const data = JSON.parse(text);
+  const functions = data.functions.reduce((functions: any, item: any) => {
+    functions[item.name] = { inputs: item.inputs || [], outputs: item.outputs || [] };
+    return functions;
+  }, {});
+  const events = data.events.reduce((events: any, item: any) => {
+    events[item.name] = { inputs: item.inputs || [] };
+    return events;
+  }, {});
+
+  return {
+    abi: text,
+    data,
+    functionHandlers: functionHandlers.map(handler => ({ abi: handler.data, handler })),
+    functions,
+    functionNames,
+    events,
+    eventNames
+  } as ParsedAbi;
+};
+
+export const AbiForm: React.FC<AbiFormProps> = ({ address, inProgress, onChangeAbi, preloadAbi }) => {
   const [localInProgress, setLocalInProgress] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [loadAbiType, setLoadAbiType] = useState(LoadAbiType.FROM_TEXT);
@@ -59,6 +84,7 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi, prelo
   const [abiSelectorVisible, setAbiSelectorVisible] = useState(false);
   const [selectedAbi, setSelectedAbi] = useState<string>();
   const [abiListVersion, setAbiListVersion] = useState(0);
+  const [everscanAbi, setEverscanAbi] = useState<string>();
 
   const openModal = (type: LoadAbiType) => () => {
     setValue('');
@@ -69,10 +95,25 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi, prelo
   };
   const hideModal = () => setModalVisible(false);
 
-  const changeAbi = (abiName: string, text: string) => {
-    const { functionHandlers, functionNames, eventNames } = core.validateContractAbi(text);
+  const changeAbiFromEverscan = () => {
+    if (everscanAbi == null) {
+      return;
+    }
 
-    const currentAbiName = abiName;
+    const abi = parseAbi(everscanAbi);
+
+    setModalVisible(false);
+    setValue('');
+    setAbiName(DEFAULT_ABI_NAME);
+    setFile(undefined);
+    setLoadAbiType(LoadAbiType.FROM_TEXT);
+    setAbiSelectorVisible(false);
+
+    onChangeAbi(abi);
+  };
+
+  const changeAbi = (abiName: string, text: string) => {
+    const abi = parseAbi(text);
 
     setModalVisible(false);
     setValue('');
@@ -80,30 +121,12 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi, prelo
     setFile(undefined);
     setLoadAbiType(LoadAbiType.FROM_TEXT);
 
-    const data = JSON.parse(text);
-    const functions = data.functions.reduce((functions: any, item: any) => {
-      functions[item.name] = { inputs: item.inputs || [], outputs: item.outputs || [] };
-      return functions;
-    }, {});
-    const events = data.events.reduce((events: any, item: any) => {
-      events[item.name] = { inputs: item.inputs || [] };
-      return events;
-    }, {});
-
-    localStorage.setItem(currentAbiName, text);
+    localStorage.setItem(abiName, text);
     abiItems = getAllAbi();
     setAbiSelectorVisible(false);
-    setSelectedAbi(currentAbiName);
+    setSelectedAbi(abiName);
 
-    onChangeAbi({
-      abi: text,
-      data: JSON.parse(text),
-      functionHandlers: functionHandlers.map(handler => ({ abi: handler.data, handler })),
-      functions,
-      functionNames,
-      events,
-      eventNames
-    });
+    onChangeAbi(abi);
   };
 
   const onSelectAbi = (name: string) => () => {
@@ -177,6 +200,34 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi, prelo
       })();
     }
   }, []);
+
+  useEffect(() => {
+    if (address == null) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const signal = controller.signal;
+    fetch(`https://verify.everscan.io/abi/address/${address}`, {
+      method: 'get',
+      signal
+    })
+      .then(response => response.text())
+      .then(response => {
+        if (response != 'null') {
+          setEverscanAbi(response);
+        } else {
+          setEverscanAbi(undefined);
+        }
+      })
+      .catch(() => {
+        setEverscanAbi(undefined);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [address]);
 
   return (
     <>
@@ -297,6 +348,11 @@ export const AbiForm: React.FC<AbiFormProps> = ({ inProgress, onChangeAbi, prelo
         <div className="control">
           <button className="button" disabled={inProgress} onClick={openModal(LoadAbiType.FROM_LINK)}>
             From link
+          </button>
+        </div>
+        <div className="control">
+          <button className="button" disabled={everscanAbi == null} onClick={changeAbiFromEverscan}>
+            From everscan
           </button>
         </div>
         {abiItems.length > 0 && (
@@ -640,6 +696,8 @@ export const Executor: React.FC<ExecutorProps> = ({ version, wallet, address, ab
       totalVisible += ~~visible;
       return visible;
     }) || [];
+
+  console.log(abi?.functionHandlers.map(item => item.handler.functionName));
 
   return (
     <>

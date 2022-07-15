@@ -220,6 +220,7 @@ export const ExecutorWorkspace: React.FC<ExecutorWorkspaceProps> = ({
           </div>
           <div className="column is-8">
             <AbiForm
+              address={accountAddress}
               inProgress={inProgress}
               onChangeAbi={newAbi => {
                 setAbi(prevAbi => {
