@@ -47,7 +47,10 @@ export const accountExplorerLink = (network: string, address: Address) => {
 };
 
 export const convertDate = (timestamp: number) => {
-  return new Date(timestamp * 1000).toLocaleDateString();
+  const d = new Date(timestamp * 1000);
+  return `${d.getFullYear()}-${('0' + (d.getMonth() + 1)).slice(-2)}-${('0' + d.getDate()).slice(-2)} ${(
+    '0' + d.getHours()
+  ).slice(-2)}:${('0' + d.getMinutes()).slice(-2)}:${('0' + d.getSeconds()).slice(-2)}`;
 };
 
 export const convertError = (error: any) => {
