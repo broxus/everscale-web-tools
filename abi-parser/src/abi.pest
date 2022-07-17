@@ -4,11 +4,11 @@ nat_const = @{ ASCII_DIGIT+ }
 
 ty_uint = ${ "uint" ~ nat_const? }
 ty_int = ${ "int" ~ nat_const? }
-ty_varuint = ${ "uint" ~ nat_const }
-ty_varint = ${ "uint" ~ nat_const }
+ty_varuint = ${ "varuint" ~ nat_const }
+ty_varint = ${ "varuint" ~ nat_const }
 ty_bool = @{ "bool" }
 ty_cell = @{ "cell" }
-ty_address = @{ "addr" | "address" }
+ty_address = @{ "address" | "addr"}
 ty_bytes = @{ "bytes" }
 ty_fixedbytes = ${ "fixedbytes" ~ nat_const }
 ty_string = @{ "string" }
@@ -18,7 +18,7 @@ ty_ref = { "ref" ~ "(" ~ ty ~ ")" }
 ty_tuple = { "(" ~ ty ~ ("," ~ ty)* ~ ")" }
 
 map_key = _{ ty_address | ty_uint | ty_int | ty_varuint | ty_varint }
-ty_map = { ("map" | "mapping") ~ "(" ~ map_key ~ "," ~ ty ~ ")" }
+ty_map = { ("mapping" | "map") ~ "(" ~ map_key ~ "," ~ ty ~ ")" }
 
 ty_not_array = _{
     ty_uint |
