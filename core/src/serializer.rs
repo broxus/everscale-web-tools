@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 
+use shared::*;
 use ton_abi::{Param, ParamType};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-
-use crate::utils::{HandleError, ObjectBuilder};
 
 #[wasm_bindgen(typescript_custom_section)]
 const ABI_ENTITY: &str = r#"

@@ -10,7 +10,6 @@ dependencies = [
  "pest_derive",
  "thiserror",
  "ton_abi",
- "ton_types",
 ]
 
 [[package]]
@@ -108,22 +107,12 @@ dependencies = [
  "abi-parser",
  "anyhow",
  "base64",
- "ed25519-dalek",
  "getrandom",
- "hex",
  "js-sys",
- "num-bigint",
- "num-traits",
- "serde",
  "serde_json",
- "sha2",
- "syn",
- "thiserror",
+ "shared",
  "ton_abi",
- "ton_block",
- "ton_executor",
  "ton_types",
- "ton_vm",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
@@ -182,6 +171,22 @@ dependencies = [
  "hashbrown",
  "lock_api",
  "parking_lot_core",
+]
+
+[[package]]
+name = "debugger"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "getrandom",
+ "js-sys",
+ "shared",
+ "ton_block",
+ "ton_executor",
+ "ton_types",
+ "ton_vm",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -264,9 +269,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "607c8a29735385251a339424dd462993c0fed8fa09d378f259377df08c126022"
+checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "hex"
@@ -622,6 +627,14 @@ dependencies = [
  "cpufeatures",
  "digest 0.9.0",
  "opaque-debug 0.3.0",
+]
+
+[[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
 ]
 
 [[package]]

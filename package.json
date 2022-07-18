@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "wasm": "wasm-pack build core --release --target web",
+    "wasm": "wasm-pack build core --release --target web && wasm-pack build debugger --release --target web",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },

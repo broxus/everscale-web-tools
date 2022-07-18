@@ -28,6 +28,11 @@ export const toPaddedHexString = (num: number, len: number) => {
   return '0'.repeat(len - str.length) + str;
 };
 
+export const zeroPad = (num: number, places: number) => {
+  const zero = places - num.toString().length + 1;
+  return Array(+(zero > 0 && zero)).join('0') + num;
+};
+
 export const transactionExplorerLink = (network: string, hash: string) => {
   switch (network) {
     case 'mainnet':

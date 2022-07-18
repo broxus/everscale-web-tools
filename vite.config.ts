@@ -13,7 +13,8 @@ export default defineConfig({
   publicDir: path.resolve(__dirname, 'public'),
   resolve: {
     alias: {
-      '@core': path.resolve(__dirname, 'core/pkg')
+      '@core': path.resolve(__dirname, 'core/pkg'),
+      '@debugger': path.resolve(__dirname, 'debugger/pkg')
     }
   }
 });

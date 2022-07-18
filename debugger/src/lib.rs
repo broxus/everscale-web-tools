@@ -3,22 +3,23 @@ use std::str::FromStr;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
+use anyhow::Context;
+use shared::*;
 use ton_block::{Deserializable, Serializable};
 use ton_executor::TransactionExecutor;
 use wasm_bindgen::prelude::*;
 
-use crate::utils::*;
-
 #[wasm_bindgen(js_name = "execute")]
-pub fn execute(account: &str, message: &str, time: u32, lt: &str) -> Result<JsValue, JsValue> {
+pub fn execute(account: &str, tx: &str, config: &str) -> Result<JsValue, JsValue> {
     let mut root_cell = parse_cell(account)?;
     let account = ton_block::Account::construct_from_cell(root_cell.clone()).handle_error()?;
-    let message = ton_block::Message::construct_from_cell(parse_cell(message)?).handle_error()?;
+    let tx = ton_block::Transaction::construct_from_base64(tx).handle_error()?;
+    let in_msg = tx.read_in_msg().handle_error()?;
 
-    let config = fetch_config().handle_error()?;
-    let executor = ton_executor::OrdinaryTransactionExecutor::new(config);
-
-    let lt = u64::from_str(lt).handle_error()?;
+    let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
+    let executor = ton_executor::OrdinaryTransactionExecutor::new(
+        ton_executor::BlockchainConfig::with_config(config).handle_error()?,
+    );
 
     let last_trans_lt = match account.stuff() {
         Some(state) => state.storage.last_trans_lt,
@@ -28,8 +29,8 @@ pub fn execute(account: &str, message: &str, time: u32, lt: &str) -> Result<JsVa
     let mut actions = Box::pin(Vec::<StackItem>::new());
 
     let params = ton_executor::ExecuteParams {
-        block_unixtime: time,
-        block_lt: lt,
+        block_unixtime: tx.now,
+        block_lt: tx.lt,
         last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt)),
         trace_callback: {
             struct Crime(*mut Vec<StackItem>);
@@ -60,7 +61,7 @@ pub fn execute(account: &str, message: &str, time: u32, lt: &str) -> Result<JsVa
     };
 
     let transaction = executor
-        .execute_with_libs_and_params(Some(&message), &mut root_cell, params)
+        .execute_with_libs_and_params(in_msg.as_ref(), &mut root_cell, params)
         .handle_error()?;
 
     let steps = js_sys::Array::new();
@@ -235,4 +236,14 @@ struct StackItem {
     gas_cmd: i64,
     cmd: String,
     stack: Vec<ton_vm::stack::StackItem>,
+}
+
+fn parse_cell(boc: &str) -> Result<ton_types::Cell, JsValue> {
+    let boc = boc.trim();
+    if boc.is_empty() {
+        Ok(ton_types::Cell::default())
+    } else {
+        let body = base64::decode(boc).handle_error()?;
+        ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()
+    }
 }

@@ -35,7 +35,7 @@ const balance = computed(() => convertTons(selectedAccountBalance.value));
         <NavbarItem path="/visualizer">Visualizer</NavbarItem>
         <NavbarItem path="/serializer">Serializer</NavbarItem>
         <NavbarItem path="/signer">Signer</NavbarItem>
-        <!--<NavbarItem path="/debugger">Debugger</NavbarItem>-->
+        <NavbarItem path="/debugger">Debugger</NavbarItem>
       </div>
       <div class="navbar-end">
         <div class="navbar-item">

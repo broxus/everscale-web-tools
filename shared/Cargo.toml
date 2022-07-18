@@ -1,0 +1,9 @@
+[package]
+name = "shared"
+version = "0.1.0"
+authors = ["Ivan Kalinin <i.kalinin@dexpa.io>"]
+edition = "2021"
+
+[dependencies]
+js-sys = "0.3"
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }

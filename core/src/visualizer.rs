@@ -1,7 +1,9 @@
+use std::fmt::Write;
+
 use anyhow::Result;
 use wasm_bindgen::prelude::*;
 
-use crate::utils::*;
+use shared::*;
 
 #[wasm_bindgen]
 pub fn visualize(boc: &str) -> Result<String, JsValue> {
@@ -10,7 +12,7 @@ pub fn visualize(boc: &str) -> Result<String, JsValue> {
 
     let mut result = String::new();
     for cell in cells {
-        result += &format!("{:#.1024}\n", cell);
+        let _ = writeln!(&mut result, "{:#.1024}", cell);
     }
 
     Ok(result)

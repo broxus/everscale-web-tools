@@ -1,8 +1,7 @@
 use std::convert::TryFrom;
 
+use shared::*;
 use wasm_bindgen::prelude::*;
-
-use crate::utils::HandleError;
 
 #[wasm_bindgen(js_name = "checkAbi")]
 pub fn check_abi(abi: &str) -> Result<(), JsValue> {
