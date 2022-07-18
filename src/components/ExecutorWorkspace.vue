@@ -15,9 +15,9 @@ enum Action {
   SEND_INTERNAL
 }
 
-type Function = {
+type FunctionState = {
   name: string;
-  structure: Structure[];
+  structure: any[]; // `Structure` type here will make typescript cry
   input: TokensObject<string>;
   collapsed: boolean;
   inProgress: boolean;
@@ -38,7 +38,7 @@ const abi = ref<string>();
 const filter = ref<string>('');
 const filterField = ref<HTMLDivElement>();
 
-const functions = ref<Function[]>([]);
+const functions = ref<FunctionState[]>([]);
 
 watch(
   abi,
@@ -77,7 +77,7 @@ watch(
   { immediate: true }
 );
 
-async function execute(f: Function, action: Action) {
+async function execute(f: FunctionState, action: Action) {
   if (f.inProgress || abi.value == null || address.value == null) {
     return;
   }

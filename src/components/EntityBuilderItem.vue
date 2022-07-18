@@ -101,7 +101,7 @@ function onOptionalChange() {
     <template v-if="value != null">
       <div v-if="structure.fieldType === 'checkbox'" class="control is-unselectable">
         <label class="checkbox">
-          <input type="checkbox" :checked="value" @change="emit('change', !value)" />
+          <input type="checkbox" :checked="(value as boolean)" @change="emit('change', !value)" />
         </label>
       </div>
       <div v-else-if="structure.fieldType === 'number'">
@@ -111,7 +111,7 @@ function onOptionalChange() {
       </div>
       <div v-else-if="structure.fieldType === 'text'">
         <div class="control">
-          <textarea class="textarea is-small" rows="2" spellcheck="false" :value="value" @input="onInput" />
+          <textarea class="textarea is-small" rows="2" spellcheck="false" :value="(value as string)" @input="onInput" />
         </div>
       </div>
       <template v-else-if="structure.fieldType === 'tuple'">
@@ -125,12 +125,12 @@ function onOptionalChange() {
       </template>
       <template v-else-if="structure.fieldType === 'array'">
         <EntityBuilderItem
-          v-for="(item, i) in value"
+          v-for="(item, i) in (value as TokenValue<string>[])"
           :key="i"
           :structure="structure.value"
           removable
-          :custom-name="`${name}[${i}]`"
-          :value="item"
+          :custom-name="`${name}[${String(i)}]`"
+          :value="(item as TokenValue<string>)"
           @change="onChangeArrayElement(i, $event)"
           @removed="onDeleteArrayElement(i)"
         />

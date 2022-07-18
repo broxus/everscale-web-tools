@@ -104,6 +104,18 @@ function onChangeFile(e: InputEvent) {
   };
 }
 
+function onChangeText(e: InputEvent) {
+  fieldsInput.value = {
+    text: (e.target as HTMLInputElement).value
+  };
+}
+
+function onChangeLink(e: InputEvent) {
+  fieldsInput.value = {
+    link: (e.target as HTMLInputElement).value
+  };
+}
+
 async function loadAbiText(): Promise<string> {
   const { file, text, link } = fieldsInput.value;
   if (text != null) {
@@ -249,7 +261,7 @@ async function onSubmit() {
                 rows="5"
                 :disabled="inProgress"
                 :value="fieldsInput.text || ''"
-                @input="fieldsInput = { text: $event.target.value }"
+                @input="onChangeText"
               />
             </div>
             <p v-if="error != null" class="help is-danger">{{ error }}</p>
@@ -265,7 +277,7 @@ async function onSubmit() {
                 spellcheck="false"
                 :disabled="inProgress"
                 :value="fieldsInput.link || ''"
-                @input="fieldsInput = { link: $event.target.value }"
+                @input="onChangeLink"
               />
             </div>
             <p v-if="error != null" class="help is-danger">{{ error }}</p>

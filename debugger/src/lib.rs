@@ -1,9 +1,7 @@
 use std::pin::Pin;
-use std::str::FromStr;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
-use anyhow::Context;
 use shared::*;
 use ton_block::{Deserializable, Serializable};
 use ton_executor::TransactionExecutor;
