@@ -1,5 +1,5 @@
 [workspace]
-members = ["abi-parser", "core"]
+members = ["abi-parser", "shared", "core", "debugger"]
 
 [profile.release]
 opt-level = "s"

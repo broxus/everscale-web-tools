@@ -64,9 +64,10 @@ fn parse_function(rule: Pair<Rule>) -> Result<ton_abi::Function, ParserError> {
 
 fn parse_cell(rule: Pair<Rule>) -> Result<Vec<ton_abi::Param>, ParserError> {
     rule.into_inner()
-        .map(|rule| {
+        .enumerate()
+        .map(|(i, rule)| {
             Ok(ton_abi::Param {
-                name: Default::default(),
+                name: format!("value{i}"),
                 kind: parse_ty(rule)?,
             })
         })

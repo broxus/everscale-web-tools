@@ -1,8 +1,8 @@
 [package]
-name = "core"
+name = "debugger"
 version = "0.1.0"
 authors = ["Ivan Kalinin <i.kalinin@dexpa.io>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]
@@ -14,17 +14,12 @@ wasm-opt = ["-Oz", "--enable-mutable-globals"]
 anyhow = "1.0"
 base64 = "0.13"
 js-sys = "0.3"
-serde_json = "1.0"
 getrandom = { version = "0.2", features = ["js"] }
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 
-ton_abi = { git = "https://github.com/broxus/ton-labs-abi.git" }
 ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
+ton_block = { git = "https://github.com/broxus/ton-labs-block.git" }
+ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
+ton_vm = { git = "https://github.com/broxus/ton-labs-vm.git" }
 
-abi-parser = { path = "../abi-parser" }
 shared = { path = "../shared" }
-
-[dev-dependencies]
-wasm-bindgen-test = "0.3"
-js-sys = "0.3"
-wasm-bindgen-futures = "0.4"
