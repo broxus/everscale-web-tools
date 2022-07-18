@@ -6,6 +6,8 @@ window.ObjectExt = { keys: Object.keys };
 export const EMPTY_CELL = 'te6ccgEBAQEAAgAAAA==';
 export const DEFAULT_ADDRESS = '0:0000000000000000000000000000000000000000000000000000000000000000';
 
+export const deepCopy = (f: any) => JSON.parse(JSON.stringify(f));
+
 export const convertAddress = (address: string | undefined) =>
   address ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : '';
 
@@ -29,7 +31,7 @@ export const toPaddedHexString = (num: number, len: number) => {
 export const transactionExplorerLink = (network: string, hash: string) => {
   switch (network) {
     case 'mainnet':
-      return `https://tonscan.io/transactions/${hash}`;
+      return `https://beta.everscan.io/transactions/${hash}`;
     case 'testnet':
       return `https://dev.tonscan.io/transactions/${hash}`;
     case 'fld':
@@ -37,14 +39,14 @@ export const transactionExplorerLink = (network: string, hash: string) => {
     case 'localnet':
       return `https://127.0.0.1/messages/messageDetails?id=${hash}`;
     default:
-      return `https://tonscan.io/transactions/${hash}`;
+      return `https://beta.everscan.io/transactions/${hash}`;
   }
 };
 
 export const accountExplorerLink = (network: string, address: Address) => {
   switch (network) {
     case 'mainnet':
-      return `https://tonscan.io/accounts/${address.toString()}`;
+      return `https://beta.everscan.io/accounts/${address.toString()}`;
     case 'testnet':
       return `https://dev.tonscan.io/accounts/${address.toString()}`;
     case 'fld':
@@ -52,7 +54,7 @@ export const accountExplorerLink = (network: string, address: Address) => {
     case 'localnet':
       return `https://127.0.0.1/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
     default:
-      return `https://tonscan.io/accounts/${address.toString()}`;
+      return `https://beta.everscan.io/accounts/${address.toString()}`;
   }
 };
 

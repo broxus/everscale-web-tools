@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { TokenValue } from 'everscale-inpage-provider';
 
-import { Structure } from '../common';
+import { deepCopy, Structure } from '../common';
 
 const props = defineProps<{
   structure: Structure;
@@ -61,8 +61,8 @@ function onDeleteMapEntry(key: TokenValue<string>) {
 }
 
 function onAddMapEntry() {
-  const key = JSON.parse(JSON.stringify(props.structure.key.defaultValue));
-  const value = JSON.parse(JSON.stringify(props.structure.value.defaultValue));
+  const key = deepCopy(props.structure.key.defaultValue);
+  const value = deepCopy(props.structure.value.defaultValue);
   (props.value as MapEntry[]).push([key, value]);
 }
 
@@ -71,7 +71,7 @@ function onChangeArrayElement(i: number, value: TokenValue<string>) {
 }
 
 function onAddArrayElement() {
-  const value = JSON.parse(JSON.stringify(props.structure.value.defaultValue));
+  const value = deepCopy(props.structure.value.defaultValue);
   (props.value as TokenValue<string>[]).push(value);
 }
 

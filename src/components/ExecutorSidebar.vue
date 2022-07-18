@@ -12,11 +12,17 @@ const props = defineProps<{
   abi?: string;
 }>();
 
+const emit = defineEmits<{
+  (e: 'update:address', address?: string): void;
+  (e: 'update:codeHash', codeHash?: string): void;
+}>();
+
 const inProgress = ref(false);
 const address = ref<string>();
 const state = shallowRef<ContractState>();
 const transactions = ref<Transaction[]>();
 const preloadingTransactions = ref(false);
+const methods = shallowRef<string[]>();
 
 const displayedAddress = computed(() => convertAddress(address.value));
 const displayedBalance = computed(() => `${convertTons(state.value?.balance)} EVER`);
@@ -24,6 +30,7 @@ const displayedBalance = computed(() => `${convertTons(state.value?.balance)} EV
 const { ever } = useEver();
 
 watch(address, async (address, _, onCleanup) => {
+  emit('update:address', address);
   if (address == null) {
     return;
   }
@@ -46,6 +53,7 @@ watch(address, async (address, _, onCleanup) => {
     return;
   }
   state.value = currentState;
+  emit('update:codeHash', currentState?.codeHash);
   statesSubscription.on('data', event => {
     if (address == event.address.toString()) {
       state.value = event.state;
@@ -75,18 +83,39 @@ watch(address, async (address, _, onCleanup) => {
   });
 });
 
+watch(
+  () => props.abi,
+  abi => {
+    if (abi == null) {
+      methods.value = undefined;
+      return;
+    }
+    const parsed = JSON.parse(abi);
+    methods.value = parsed.functions.map(f => f.name);
+  },
+  {
+    immediate: true
+  }
+);
+
 async function preloadTransactions() {
   const currentTransactions = transactions.value;
   if (address.value == null || currentTransactions == null || currentTransactions.length == 0) {
     return;
   }
-  const continuation = currentTransactions[currentTransactions.length - 1].id;
+  const continuation = currentTransactions[currentTransactions.length - 1].prevTransactionId;
+  if (continuation == null) {
+    return;
+  }
 
   preloadingTransactions.value = true;
   const { transactions: oldTransactions, info } = await ever
     .getTransactions({
       address: new Address(address.value),
-      continuation
+      continuation: {
+        hash: continuation.hash,
+        lt: continuation.lt
+      }
     })
     .finally(() => {
       preloadingTransactions.value = false;
@@ -96,7 +125,7 @@ async function preloadTransactions() {
   if (
     newTransactions != null &&
     newTransactions.length > 0 &&
-    newTransactions[newTransactions.length - 1].id.hash == continuation.hash
+    newTransactions[newTransactions.length - 1].prevTransactionId?.hash == continuation.hash
   ) {
     transactions.value = mergeTransactions(newTransactions, oldTransactions, info);
   }
@@ -123,15 +152,22 @@ async function preloadTransactions() {
     </div>
 
     <template v-if="transactions">
-      <ExecutorTransaction v-for="transaction in transactions" :key="transaction.id.hash" />
-    </template>
+      <ExecutorTransaction
+        v-for="transaction in transactions"
+        :key="transaction.id.hash"
+        :transaction="transaction"
+        :abi="abi"
+        :methods="methods"
+      />
 
-    <button
-      :class="['button is-fullwidth', { 'is-loading': preloadingTransactions }]"
-      :disabled="preloadingTransactions"
-      @click="preloadTransactions"
-    >
-      Load more
-    </button>
+      <button
+        v-if="transactions.length > 0 && transactions[transactions.length - 1].prevTransactionId != null"
+        :class="['button is-fullwidth', { 'is-loading': preloadingTransactions }]"
+        :disabled="preloadingTransactions"
+        @click="preloadTransactions"
+      >
+        Load more
+      </button>
+    </template>
   </div>
 </template>
