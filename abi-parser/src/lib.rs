@@ -39,10 +39,16 @@ fn parse_function(rule: Pair<Rule>) -> Result<ton_abi::Function, ParserError> {
     let function_name = rules.next().ok_or(ParserError::UnexpectedEof)?.as_str();
     let inputs = parse_cell(rules.next().ok_or(ParserError::UnexpectedEof)?)?;
     let outputs = parse_cell(rules.next().ok_or(ParserError::UnexpectedEof)?)?;
-    let abi_version = match rules.next().ok_or(ParserError::UnexpectedEof)?.as_str() {
-        "v1" => ton_abi::contract::ABI_VERSION_1_0,
-        "v2" => ton_abi::contract::ABI_VERSION_2_2,
-        _ => return Err(ParserError::InvalidAbiVersion),
+    let abi_version = match rules.next() {
+        Some(rule) => match rule.as_str() {
+            "v1.0" | "v1" => ton_abi::contract::ABI_VERSION_1_0,
+            "v2.0" => ton_abi::contract::ABI_VERSION_2_0,
+            "v2.1" => ton_abi::contract::ABI_VERSION_2_1,
+            "v2.2" | "v2" => ton_abi::contract::ABI_VERSION_2_2,
+            "v2.3" => ton_abi::contract::ABI_VERSION_2_3,
+            _ => return Err(ParserError::InvalidAbiVersion),
+        },
+        None => ton_abi::contract::ABI_VERSION_2_2,
     };
 
     let mut function = ton_abi::Function {

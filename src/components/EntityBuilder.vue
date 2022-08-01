@@ -56,7 +56,7 @@ watch(
 
     const result = { output: undefined, error: undefined };
     try {
-      const { boc } = await ever.packIntoCell<any>({ data, structure });
+      const { boc } = await ever.packIntoCell({ data, structure } as any);
       result.output = boc;
     } catch (e: any) {
       result.error = convertError(e);

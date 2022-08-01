@@ -44,8 +44,8 @@ ty = _{ ty_array | ty_fixedarray | ty_not_array }
 
 function_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 function_params = { "(" ~ (ty ~ ("," ~ ty)* )? ~ ")" }
-function_version = @{ "v1" | "v2" }
-function = { function_name ~ function_params ~ function_params ~ function_version }
+function_version = @{ "v2.0" | "v2.1" | "v2.2" | "v2.3" | "v1.0" | "v1" | "v2" }
+function = { function_name ~ function_params ~ function_params ~ function_version? }
 
 cell = { ty ~ ("," ~ ty)* }
 
