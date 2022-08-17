@@ -15,7 +15,12 @@ export type AbiEntity =
   | {
       kind: 'function';
       name: string;
+      version: {
+        major: number,
+        minor: number,
+      };
       inputs: ever.AbiParam[];
+      outputs: ever.AbiParam[];
       inputId: number;
       outputId: number;
     };
@@ -66,7 +71,15 @@ pub fn parse(abi: &str) -> Result<AbiEntity, JsValue> {
         abi_parser::Entity::Function(function) => ObjectBuilder::new()
             .set("kind", "function")
             .set("name", function.name)
+            .set(
+                "version",
+                ObjectBuilder::new()
+                    .set("major", function.abi_version.major)
+                    .set("minor", function.abi_version.minor)
+                    .build(),
+            )
             .set("inputs", make_params(function.inputs))
+            .set("outputs", make_params(function.outputs))
             .set("inputId", function.input_id)
             .set("outputId", function.output_id),
     }

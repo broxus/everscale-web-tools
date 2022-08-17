@@ -22,7 +22,7 @@ const decode = (e: Event) => {
 </script>
 
 <template>
-  <section class="section">
+  <section class="section pb-0">
     <div class="container is-fluid">
       <div class="field">
         <label class="label">Enter base64 encoded BOC:</label>
