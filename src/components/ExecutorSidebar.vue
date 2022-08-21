@@ -5,7 +5,7 @@ import { Address, ContractState, Transaction, mergeTransactions } from 'everscal
 import { useEver } from '../providers/useEver';
 import { convertAddress, convertTons } from '../common';
 
-import ExecutorAddressForm from './ExecutorAddressForm.vue';
+import AddressSearchForm from './AddressSearchForm.vue';
 import ExecutorTransaction from './ExecutorTransaction.vue';
 
 const props = defineProps<{
@@ -135,7 +135,7 @@ async function preloadTransactions() {
 <template>
   <div class="is-flex-direction-column">
     <div class="block">
-      <ExecutorAddressForm :disabled="inProgress" v-model="address" />
+      <AddressSearchForm :disabled="inProgress" v-model="address" />
     </div>
     <div v-if="address != null" class="block">
       <div class="is-flex is-flex-direction-row">

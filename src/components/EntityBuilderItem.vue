@@ -96,7 +96,7 @@ function onOptionalChange() {
       <span class="tag mb-0">{{ title }}</span>
       <a class="tag is-delete mb-0" @click="emit('removed')" />
     </div>
-    <span v-else :class="['tag', { 'mb-3': structure.fieldType === 'tuple' }]">{{ title }}</span>
+    <span v-else :class="['tag', structure.fieldType === 'tuple' ? 'mb-3' : 'mb-0']">{{ title }}</span>
 
     <template v-if="value != null">
       <div v-if="structure.fieldType === 'checkbox'" class="control is-unselectable">
@@ -177,6 +177,11 @@ function onOptionalChange() {
   &.is-value {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
+  }
+
+  .tag.mb-0 {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
   }
 }
 </style>

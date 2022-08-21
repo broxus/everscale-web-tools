@@ -1,4 +1,4 @@
-import { ref, shallowRef, watchEffect } from 'vue';
+import { ref, shallowRef, watch } from 'vue';
 import { Permissions, ProviderRpcClient } from 'everscale-inpage-provider';
 
 const ever = new ProviderRpcClient();
@@ -45,28 +45,34 @@ ever.hasProvider().then(async hasTonProvider => {
   }
 });
 
-watchEffect(async onCleanup => {
-  const address = selectedAccount.value?.address;
-  if (address == null) {
-    return;
-  }
-  selectedAccountBalance.value = undefined;
-
-  const { state } = await ever.getFullContractState({ address });
-  if (selectedAccount.value?.address != address) {
-    return;
-  }
-  selectedAccountBalance.value = state.balance;
-
-  const subscription = await ever.subscribe('contractStateChanged', { address });
-  onCleanup(() => subscription.unsubscribe().catch(console.error));
-
-  subscription.on('data', event => {
-    if (event.address.equals(selectedAccount.value?.address)) {
-      selectedAccountBalance.value = event.state.balance;
+watch(
+  [selectedAccount, selectedNetwork],
+  async ([selectedAccount], _old, onCleanup) => {
+    const address = selectedAccount?.address;
+    if (address == null) {
+      return;
     }
-  });
-});
+    selectedAccountBalance.value = undefined;
+
+    const { state } = await ever.getFullContractState({ address });
+    if (selectedAccount?.address != address) {
+      return;
+    }
+    selectedAccountBalance.value = state?.balance;
+
+    const subscription = await ever.subscribe('contractStateChanged', { address });
+    onCleanup(() => subscription.unsubscribe().catch(console.error));
+
+    subscription.on('data', event => {
+      if (event.address.equals(selectedAccount?.address)) {
+        selectedAccountBalance.value = event.state.balance;
+      }
+    });
+  },
+  {
+    immediate: true
+  }
+);
 
 export function useEver() {
   return {

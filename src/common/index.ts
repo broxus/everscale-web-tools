@@ -73,6 +73,8 @@ export const convertDate = (timestamp: number) => {
 export const convertError = (error: any) => {
   if (typeof error.message === 'string') {
     return error.message;
+  } else if (typeof error === 'object' && typeof error.error === 'string') {
+    return error.error;
   } else {
     return error.toString();
   }

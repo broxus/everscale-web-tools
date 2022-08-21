@@ -12,7 +12,7 @@
   "dependencies": {
     "@soerenmartius/vue3-clipboard": "^0.1.2",
     "decimal.js": "^10.3.1",
-    "everscale-inpage-provider": "^0.3.29",
+    "everscale-inpage-provider": "^0.3.37",
     "vue": "^3.2.37",
     "vue-router": "^4.1.2"
   },

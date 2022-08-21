@@ -1,10 +1,12 @@
-<script setup lang='ts'>
+<script setup lang="ts">
 import Navbar from './components/Navbar.vue';
 </script>
 
 <template>
   <Navbar />
-  <router-view />
+  <div class="container is-fluid">
+    <router-view />
+  </div>
 </template>
 
-<style lang='scss' src='./styles/main.scss' />
+<style lang="scss" src="./styles/main.scss" />

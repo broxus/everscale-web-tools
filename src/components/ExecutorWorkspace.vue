@@ -3,11 +3,12 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { TokensObject } from 'everscale-inpage-provider';
 
 import { useEver } from '../providers/useEver';
-import { makeStructure, convertError, deepCopy, convertFromTons, Structure } from '../common';
+import { makeStructure, convertError, deepCopy, convertFromTons } from '../common';
 
 import ExecutorSidebar from './ExecutorSidebar.vue';
 import ExecutorAbiForm from './ExecutorAbiForm.vue';
 import EntityBuilderItem from './EntityBuilderItem.vue';
+import ConnectWalletStub from './ConnectWalletStub.vue';
 
 enum Action {
   RUN_LOCAL,
@@ -29,7 +30,7 @@ type FunctionState = {
   error?: string;
 };
 
-const { ever, hasProvider, selectedAccount } = useEver();
+const { ever, selectedAccount } = useEver();
 
 const address = ref<string>();
 const codeHash = ref<string>();
@@ -145,7 +146,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <template v-if="hasProvider && selectedAccount != null">
+  <ConnectWalletStub>
     <div class="section executor-workspace">
       <div class="container is-fluid">
         <div class="columns">
@@ -286,16 +287,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
-  </template>
-  <template v-else>
-    <div class="hero is-fullheight-with-navbar">
-      <div class="hero-body is-justify-content-center">
-        <div>
-          <p class="title">{{ hasProvider ? 'Wallet not connected' : 'Wallet not installed' }}</p>
-        </div>
-      </div>
-    </div>
-  </template>
+  </ConnectWalletStub>
 </template>
 
 <style lang="scss">

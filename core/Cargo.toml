@@ -20,6 +20,7 @@ wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 
 ton_abi = { git = "https://github.com/broxus/ton-labs-abi.git" }
 ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
+ton_block = { git = "https://github.com/broxus/ton-labs-block.git" }
 
 abi-parser = { path = "../abi-parser" }
 shared = { path = "../shared" }
