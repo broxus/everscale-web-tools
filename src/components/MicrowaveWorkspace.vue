@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onBeforeMount, onUnmounted, watch, computed } from 'vue';
-import { ContractState, Address, Subscription } from 'everscale-inpage-provider';
+import { computed, onBeforeMount, onUnmounted, ref, watch } from 'vue';
+import { Address, ContractState, Subscription } from 'everscale-inpage-provider';
 import * as core from '@core';
 
 import AddressSearchForm from './AddressSearchForm.vue';
@@ -8,7 +8,7 @@ import ConnectWalletStub from './ConnectWalletStub.vue';
 
 import { convertError } from '../common';
 import { useEver } from '../providers/useEver';
-import { useMicrowave } from '../providers/useMicrowave';
+import { UnfreezeMode, useMicrowave } from '../providers/useMicrowave';
 
 type ExtendedContractState = ContractState & { frozen?: core.FrozenState };
 
@@ -110,7 +110,7 @@ const doDeployMicrowave = () => {
 };
 
 let cancelUnfreeze: () => void | undefined;
-const doUnfreezeContract = () => {
+const doUnfreezeContract = (e: MouseEvent) => {
   if (inProgress.value) {
     return;
   }
@@ -122,9 +122,17 @@ const doUnfreezeContract = () => {
     return;
   }
 
+  let mode = UnfreezeMode.WithDuePayment;
+  if (e.shiftKey) {
+    mode = UnfreezeMode.Fixed;
+  } else if (e.altKey) {
+    mode = UnfreezeMode.Destructive;
+  }
+
   const unfreeze = unfreezeContract(
     {
       address,
+      mode,
       ...formState.value
     },
     status => {

@@ -82,8 +82,15 @@ const initializeMicrowave = () => {
   initialized.value = true;
 };
 
+export enum UnfreezeMode {
+  WithDuePayment,
+  Fixed,
+  Destructive
+}
+
 export type UnfreezeContractParams = {
   address: string;
+  mode: UnfreezeMode;
   statesApiUrl: string;
 };
 
@@ -113,6 +120,25 @@ const unfreezeContract = (args: UnfreezeContractParams, setStatus: (status?: str
     const frozen = core.parseFrozenState(accountState.boc);
     if (frozen == null) {
       throw new Error('Account not frozen');
+    }
+
+    let amount: Decimal;
+    switch (args.mode) {
+      case UnfreezeMode.WithDuePayment: {
+        amount = new Decimal('1000000000');
+        if (frozen.duePayment != null) {
+          amount = amount.add(frozen.duePayment);
+        }
+        break;
+      }
+      case UnfreezeMode.Destructive: {
+        amount = new Decimal('200000000'); // 0.2 EVER
+        break;
+      }
+      default: {
+        amount = new Decimal('1000000000'); // 1 EVER
+        break;
+      }
     }
 
     setStatus('searching for freeze transaction');
@@ -223,11 +249,6 @@ const unfreezeContract = (args: UnfreezeContractParams, setStatus: (status?: str
     const from = selectedAccount.value?.address;
     if (from == null) {
       throw new Error('Account not selected');
-    }
-
-    let amount = new Decimal('1000000000');
-    if (frozen.duePayment != null) {
-      amount = amount.add(frozen.duePayment);
     }
 
     const walletTx = await new ever.Contract(MICROWAVE_ABI, microwaveAddress).methods
