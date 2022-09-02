@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { convertAddress, convertTons } from '../common';
+import { convertAddress, fromNano } from '../common';
 
 import { useEver } from '../providers/useEver';
 
@@ -20,7 +20,7 @@ const doChangeAccount = async () => {
 };
 
 const address = computed(() => convertAddress(selectedAccount.value?.address.toString()));
-const balance = computed(() => convertTons(selectedAccountBalance.value));
+const balance = computed(() => fromNano(selectedAccountBalance.value));
 </script>
 
 <template>

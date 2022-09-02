@@ -37,8 +37,6 @@ watchEffect(() => {
 });
 
 watch([bocInput, abiState, partial], async ([bocInput, { abi }, partial], _, onCleanup) => {
-  console.log(bocInput, abi, partial);
-
   if (abi == null) {
     bocState.value = {
       decoded: undefined,

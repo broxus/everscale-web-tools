@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue';
 import { Address, Subscription, LT_COLLATOR, TransactionId, Transaction } from 'everscale-inpage-provider';
-import Decimal from 'decimal.js';
+import BigNumber from 'bignumber.js';
 import * as core from '@core';
 
 import { useEver } from './useEver';
@@ -122,21 +122,21 @@ const unfreezeContract = (args: UnfreezeContractParams, setStatus: (status?: str
       throw new Error('Account not frozen');
     }
 
-    let amount: Decimal;
+    let amount: BigNumber;
     switch (args.mode) {
       case UnfreezeMode.WithDuePayment: {
-        amount = new Decimal('1000000000');
+        amount = new BigNumber('1000000000');
         if (frozen.duePayment != null) {
-          amount = amount.add(frozen.duePayment);
+          amount = amount.plus(frozen.duePayment);
         }
         break;
       }
       case UnfreezeMode.Destructive: {
-        amount = new Decimal('200000000'); // 0.2 EVER
+        amount = new BigNumber('200000000'); // 0.2 EVER
         break;
       }
       default: {
-        amount = new Decimal('1000000000'); // 1 EVER
+        amount = new BigNumber('1000000000'); // 1 EVER
         break;
       }
     }

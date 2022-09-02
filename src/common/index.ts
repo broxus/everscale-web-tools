@@ -1,4 +1,4 @@
-import Decimal from 'decimal.js';
+import BigNumber from 'bignumber.js';
 import { AbiParam, Address, TokenValue } from 'everscale-inpage-provider';
 
 window.ObjectExt = { keys: Object.keys };
@@ -13,9 +13,9 @@ export const convertAddress = (address: string | undefined) =>
 
 export const convertHash = (hash: string | undefined) => (hash ? `${hash?.slice(0, 4)}...${hash?.slice(-4)}` : '');
 
-export const convertTons = (amount?: string) => new Decimal(amount || '0').div('1000000000').toFixed();
+export const fromNano = (amount?: string) => new BigNumber(amount || '0').div('1000000000').toFixed();
 
-export const convertFromTons = (amount?: string) => new Decimal(amount || '0').mul('1000000000').ceil().toFixed();
+export const toNano = (amount?: string) => new BigNumber(amount || '0').multipliedBy('1000000000').toFixed(0);
 
 const addressRegex = /^(?:-1|0):[\da-fA-F]{64}$/;
 export const checkAddress = (address: string) => addressRegex.test(address);
@@ -36,7 +36,7 @@ export const zeroPad = (num: number, places: number) => {
 export const transactionExplorerLink = (network: string, hash: string) => {
   switch (network) {
     case 'mainnet':
-      return `https://beta.everscan.io/transactions/${hash}`;
+      return `https://everscan.io/transactions/${hash}`;
     case 'testnet':
       return `https://dev.tonscan.io/transactions/${hash}`;
     case 'fld':
@@ -44,14 +44,14 @@ export const transactionExplorerLink = (network: string, hash: string) => {
     case 'localnet':
       return `https://127.0.0.1/messages/messageDetails?id=${hash}`;
     default:
-      return `https://beta.everscan.io/transactions/${hash}`;
+      return `https://everscan.io/transactions/${hash}`;
   }
 };
 
 export const accountExplorerLink = (network: string, address: Address) => {
   switch (network) {
     case 'mainnet':
-      return `https://beta.everscan.io/accounts/${address.toString()}`;
+      return `https://everscan.io/accounts/${address.toString()}`;
     case 'testnet':
       return `https://dev.tonscan.io/accounts/${address.toString()}`;
     case 'fld':
@@ -59,7 +59,7 @@ export const accountExplorerLink = (network: string, address: Address) => {
     case 'localnet':
       return `https://127.0.0.1/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
     default:
-      return `https://beta.everscan.io/accounts/${address.toString()}`;
+      return `https://everscan.io/accounts/${address.toString()}`;
   }
 };
 

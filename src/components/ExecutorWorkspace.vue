@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { useRouter } from 'vue-router';
 import { TokensObject } from 'everscale-inpage-provider';
 
 import { useEver } from '../providers/useEver';
-import { makeStructure, convertError, deepCopy, convertFromTons } from '../common';
+import { makeStructure, convertError, deepCopy, toNano, checkAddress } from '../common';
 
 import ExecutorSidebar from './ExecutorSidebar.vue';
 import ExecutorAbiForm from './ExecutorAbiForm.vue';
@@ -31,6 +32,7 @@ type FunctionState = {
 };
 
 const { ever, selectedAccount } = useEver();
+const { push, currentRoute } = useRouter();
 
 const address = ref<string>();
 const codeHash = ref<string>();
@@ -40,6 +42,19 @@ const filter = ref<string>('');
 const filterField = ref<HTMLDivElement>();
 
 const functions = ref<FunctionState[]>([]);
+
+watch(
+  () => currentRoute.value.params,
+  (newParams: object, oldParams?: object) => {
+    const newAddress = newParams['address'];
+    if (newAddress != oldParams?.['address']) {
+      address.value = newAddress != null && checkAddress(newAddress) ? newAddress : undefined;
+    }
+  },
+  {
+    immediate: true
+  }
+);
 
 watch(
   abi,
@@ -114,7 +129,7 @@ async function execute(f: FunctionState, action: Action) {
         res = await ever.rawApi.sendMessage({
           sender: selectedAccount.value.address.toString(),
           recipient: address.value,
-          amount: convertFromTons(f.attached),
+          amount: toNano(f.attached),
           bounce: f.bounce,
           payload: functionCall
         });
@@ -137,6 +152,10 @@ function focusFilterField(event: KeyboardEvent) {
   }
 }
 
+function openAccount(address: string) {
+  push({ name: 'executor', params: { address } });
+}
+
 onMounted(() => {
   document.addEventListener('keydown', focusFilterField, false);
 });
@@ -151,7 +170,12 @@ onBeforeUnmount(() => {
       <div class="container is-fluid">
         <div class="columns">
           <div class="column is-4">
-            <ExecutorSidebar :abi="abi" @update:address="address = $event" @update:codeHash="codeHash = $event" />
+            <ExecutorSidebar
+              :address="address"
+              :abi="abi"
+              @update:address="openAccount($event)"
+              @update:codeHash="codeHash = $event"
+            />
           </div>
           <div class="column is-8">
             <ExecutorAbiForm :code-hash="codeHash" @change="abi = $event" />

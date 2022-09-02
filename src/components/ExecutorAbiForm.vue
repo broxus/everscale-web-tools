@@ -15,9 +15,6 @@ const convertLink = (address: URL) => {
   if (address.origin == 'https://github.com' && address.pathname.endsWith('.abi.json')) {
     return new URL(`https://raw.githubusercontent.com${address.pathname.replace(BLOB_PART, '/')}`);
   }
-  if (address.origin.includes('abi.rs')) {
-    return address;
-  }
   return address;
 };
 

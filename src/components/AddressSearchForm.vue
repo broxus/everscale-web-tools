@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, watch, ref } from 'vue';
 
 import { checkAddress } from '../common';
 
@@ -16,6 +16,18 @@ const input = ref('');
 
 const canSearch = computed(
   () => !props.disabled && props.modelValue?.toLowerCase() != input.value.toLowerCase() && checkAddress(input.value)
+);
+
+watch(
+  () => props.modelValue,
+  newValue => {
+    if (newValue != null && newValue != input.value) {
+      input.value = newValue;
+    }
+  },
+  {
+    immediate: true
+  }
 );
 </script>
 

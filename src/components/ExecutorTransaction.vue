@@ -9,7 +9,7 @@ import {
   convertAddress,
   convertDate,
   convertHash,
-  convertTons,
+  fromNano,
   transactionExplorerLink
 } from '../common';
 
@@ -24,7 +24,7 @@ const { ever, selectedNetwork } = useEver();
 const parsed = shallowRef<{ functionData?: string; eventsData?: string[] }>({});
 
 function displayInMessageInfo(msg: Message): {
-  src?: { address: string; link: string };
+  src?: { address: string; executorLink: string; explorerLink: string };
   value: string;
   bounced: boolean;
 } {
@@ -33,16 +33,17 @@ function displayInMessageInfo(msg: Message): {
       msg.src != null
         ? {
             address: convertAddress(msg.src.toString()),
-            link: accountExplorerLink(selectedNetwork.value, msg.src)
+            executorLink: `/executor/${msg.src.toString()}`,
+            explorerLink: accountExplorerLink(selectedNetwork.value, msg.src)
           }
         : undefined,
-    value: msg.src != null ? convertTons(msg.value) : '0',
+    value: msg.src != null ? fromNano(msg.value) : '0',
     bounced: msg.bounced
   };
 }
 
 function displayOutMessageInfo(msg: Message): {
-  dst?: { address: string; link: string };
+  dst?: { address: string; executorLink?: string; explorerLink: string };
   value: string;
   bounce: boolean;
   bounced: boolean;
@@ -52,10 +53,11 @@ function displayOutMessageInfo(msg: Message): {
       msg.dst != null
         ? {
             address: convertAddress(msg.dst.toString()),
-            link: accountExplorerLink(selectedNetwork.value, msg.dst)
+            executorLink: `/executor/${msg.dst.toString()}`,
+            explorerLink: accountExplorerLink(selectedNetwork.value, msg.dst)
           }
         : undefined,
-    value: msg.dst != null ? convertTons(msg.value) : '0',
+    value: msg.dst != null ? fromNano(msg.value) : '0',
     bounce: msg.bounce,
     bounced: msg.bounced
   };
@@ -63,7 +65,7 @@ function displayOutMessageInfo(msg: Message): {
 
 const displayedInfo = computed(() => ({
   createdAt: convertDate(props.transaction.createdAt),
-  totalFees: convertTons(props.transaction.totalFees),
+  totalFees: fromNano(props.transaction.totalFees),
   explorerLink: transactionExplorerLink(selectedNetwork.value, props.transaction.id.hash),
   hash: convertHash(props.transaction.id.hash),
   inMsg: displayInMessageInfo(props.transaction.inMessage),
@@ -140,9 +142,16 @@ watch(
             </div>
           </div>
 
-          <a :href="displayedInfo.explorerLink" target="_blank" class="tag is-link">
-            {{ displayedInfo.hash }}&nbsp;<span class="icon"><i class="fa fa-external-link-alt" /></span>
-          </a>
+          <div class="control">
+            <div class="tags has-addons">
+              <span class="tag is-dark is-button" v-clipboard="transaction.id.hash"
+                ><span class="icon"><i class="fas fa-copy" /></span
+              ></span>
+              <a :href="displayedInfo.explorerLink" target="_blank" class="tag is-link">
+                {{ displayedInfo.hash }}&nbsp;<span class="icon"><i class="fa fa-external-link-alt" /></span>
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -164,10 +173,16 @@ watch(
           <div class="column is-family-monospace">
             <template v-if="displayedInfo.inMsg.src != null">
               <p>{{ displayedInfo.inMsg.value }} EVER</p>
-              <p class="help">
-                From:&nbsp;<a :href="displayedInfo.inMsg.src.link" target="_blank">{{
-                  displayedInfo.inMsg.src.address
-                }}</a>
+              <p class="help noselect">
+                From:&nbsp;<router-link :to="displayedInfo.inMsg.src.executorLink" class="address-link"
+                  >{{ displayedInfo.inMsg.src.address }} </router-link
+                >&nbsp;
+                <span class="tag is-button is-text" v-clipboard="transaction.inMessage.src"
+                  ><span class="icon has-text-success-dark"><i class="fas fa-copy" /></span
+                ></span>
+                <a :href="displayedInfo.inMsg.src.explorerLink" target="_blank" class="tag is-button is-text ml-1">
+                  <span class="icon has-text-success-dark"><i class="fa fa-external-link-alt" /></span>
+                </a>
               </p>
             </template>
             <p v-else class="help">External in</p>
@@ -192,8 +207,16 @@ watch(
           <div class="column is-family-monospace">
             <template v-if="msg.dst != null">
               <p>{{ msg.value }} EVER</p>
-              <p class="help">
-                To:&nbsp;<a :href="msg.dst.link" target="_blank">{{ msg.dst.address }}</a>
+              <p class="help noselect">
+                To:&nbsp;<router-link :to="msg.dst.executorLink" class="address-link"
+                  >{{ msg.dst.address }} </router-link
+                >&nbsp;
+                <span class="tag is-button is-text" v-clipboard="transaction.outMessages[i].dst"
+                  ><span class="icon has-text-danger-dark"><i class="fas fa-copy" /></span
+                ></span>
+                <a :href="msg.dst.explorerLink" target="_blank" class="tag is-button is-text ml-1">
+                  <span class="icon has-text-danger-dark"><i class="fa fa-external-link-alt" /></span>
+                </a>
               </p>
             </template>
             <p v-else class="help">External out</p>
@@ -217,3 +240,39 @@ watch(
     </div>
   </div>
 </template>
+
+<style lang="scss">
+a.address-link {
+  &:hover {
+    font-weight: bold;
+  }
+}
+
+a.tag.is-button {
+  text-decoration: none;
+}
+
+.tag.is-button {
+  cursor: pointer;
+
+  &.is-text {
+    background-color: transparent;
+  }
+
+  &.is-text:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  &.is-text:active {
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+
+  &.is-dark:hover {
+    box-shadow: 0 0 0 0.125em rgba(54, 54, 54, 0.25);
+  }
+
+  &.is-dark:active {
+    background-color: #292929;
+  }
+}
+</style>

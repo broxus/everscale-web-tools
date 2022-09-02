@@ -12,7 +12,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', redirect: '/executor' },
-    { path: '/executor', component: ExecutorWorkspace },
+    { name: 'executor', path: '/executor/:address?', component: ExecutorWorkspace },
     { path: '/visualizer', component: VisualizerWorkspace },
     { path: '/serializer', component: SerializerWorkspace },
     { path: '/deserializer', component: DeserializerWorkspace },

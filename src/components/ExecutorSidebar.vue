@@ -3,12 +3,13 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import { Address, ContractState, Transaction, mergeTransactions } from 'everscale-inpage-provider';
 
 import { useEver } from '../providers/useEver';
-import { convertAddress, convertTons } from '../common';
+import { convertAddress, fromNano } from '../common';
 
 import AddressSearchForm from './AddressSearchForm.vue';
 import ExecutorTransaction from './ExecutorTransaction.vue';
 
 const props = defineProps<{
+  address?: string;
   abi?: string;
 }>();
 
@@ -18,70 +19,74 @@ const emit = defineEmits<{
 }>();
 
 const inProgress = ref(false);
-const address = ref<string>();
 const state = shallowRef<ContractState>();
 const transactions = ref<Transaction[]>();
 const preloadingTransactions = ref(false);
 const methods = shallowRef<string[]>();
 
-const displayedAddress = computed(() => convertAddress(address.value));
-const displayedBalance = computed(() => `${convertTons(state.value?.balance)} EVER`);
+const displayedAddress = computed(() => convertAddress(props.address));
+const displayedBalance = computed(() => `${fromNano(state.value?.balance)} EVER`);
 
 const { ever } = useEver();
 
-watch(address, async (address, _, onCleanup) => {
-  emit('update:address', address);
-  if (address == null) {
-    return;
-  }
-
-  const localState = { addressChanged: false };
-
-  const [statesSubscription, transactionsSubscription] = await Promise.all([
-    ever.subscribe('contractStateChanged', { address: new Address(address) }),
-    ever.subscribe('transactionsFound', { address: new Address(address) })
-  ]);
-  onCleanup(async () => {
-    localState.addressChanged = true;
-    state.value = undefined;
-    transactions.value = undefined;
-    await Promise.allSettled([statesSubscription.unsubscribe(), transactionsSubscription.unsubscribe()]);
-  });
-
-  const { state: currentState } = await ever.getFullContractState({ address: new Address(address) });
-  if (localState.addressChanged) {
-    return;
-  }
-  state.value = currentState;
-  emit('update:codeHash', currentState?.codeHash);
-  statesSubscription.on('data', event => {
-    if (address == event.address.toString()) {
-      state.value = event.state;
+watch(
+  () => props.address,
+  async (address, _, onCleanup) => {
+    if (address == null) {
+      return;
     }
-  });
 
-  if (currentState?.lastTransactionId != null) {
-    const { transactions: oldTransactions } = await ever.getTransactions({
-      address: new Address(address),
-      continuation: {
-        lt: currentState.lastTransactionId.lt,
-        hash: currentState.lastTransactionId.hash || '00'.repeat(32)
-      }
+    const localState = { addressChanged: false };
+
+    const [statesSubscription, transactionsSubscription] = await Promise.all([
+      ever.subscribe('contractStateChanged', { address: new Address(address) }),
+      ever.subscribe('transactionsFound', { address: new Address(address) })
+    ]);
+    onCleanup(async () => {
+      localState.addressChanged = true;
+      state.value = undefined;
+      transactions.value = undefined;
+      await Promise.allSettled([statesSubscription.unsubscribe(), transactionsSubscription.unsubscribe()]);
     });
+
+    const { state: currentState } = await ever.getFullContractState({ address: new Address(address) });
     if (localState.addressChanged) {
       return;
     }
-    transactions.value = oldTransactions;
-  } else {
-    transactions.value = [];
-  }
+    state.value = currentState;
+    emit('update:codeHash', currentState?.codeHash);
+    statesSubscription.on('data', event => {
+      if (address == event.address.toString()) {
+        state.value = event.state;
+      }
+    });
 
-  transactionsSubscription.on('data', event => {
-    if (address == event.address.toString()) {
-      transactions.value = mergeTransactions(transactions.value, event.transactions, event.info);
+    if (currentState?.lastTransactionId != null) {
+      const { transactions: oldTransactions } = await ever.getTransactions({
+        address: new Address(address),
+        continuation: {
+          lt: currentState.lastTransactionId.lt,
+          hash: currentState.lastTransactionId.hash || '00'.repeat(32)
+        }
+      });
+      if (localState.addressChanged) {
+        return;
+      }
+      transactions.value = oldTransactions;
+    } else {
+      transactions.value = [];
     }
-  });
-});
+
+    transactionsSubscription.on('data', event => {
+      if (address == event.address.toString()) {
+        transactions.value = mergeTransactions(transactions.value, event.transactions, event.info);
+      }
+    });
+  },
+  {
+    immediate: true
+  }
+);
 
 watch(
   () => props.abi,
@@ -100,7 +105,8 @@ watch(
 
 async function preloadTransactions() {
   const currentTransactions = transactions.value;
-  if (address.value == null || currentTransactions == null || currentTransactions.length == 0) {
+  const address = props.address;
+  if (address == null || currentTransactions == null || currentTransactions.length == 0) {
     return;
   }
   const continuation = currentTransactions[currentTransactions.length - 1].prevTransactionId;
@@ -111,7 +117,7 @@ async function preloadTransactions() {
   preloadingTransactions.value = true;
   const { transactions: oldTransactions, info } = await ever
     .getTransactions({
-      address: new Address(address.value),
+      address: new Address(address),
       continuation: {
         hash: continuation.hash,
         lt: continuation.lt
@@ -135,7 +141,11 @@ async function preloadTransactions() {
 <template>
   <div class="is-flex-direction-column">
     <div class="block">
-      <AddressSearchForm :disabled="inProgress" v-model="address" />
+      <AddressSearchForm
+        :disabled="inProgress"
+        :modelValue="address"
+        @update:modelValue="emit('update:address', $event)"
+      />
     </div>
     <div v-if="address != null" class="block">
       <div class="is-flex is-flex-direction-row">
