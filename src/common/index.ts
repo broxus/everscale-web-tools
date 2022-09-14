@@ -38,8 +38,10 @@ export const transactionExplorerLink = (network: string, hash: string) => {
     case 'mainnet':
       return `https://everscan.io/transactions/${hash}`;
     case 'testnet':
-      return `https://dev.tonscan.io/transactions/${hash}`;
+      return `https://testnet.everscan.io/transactions/${hash}`;
     case 'fld':
+      return `https://fld.ever.live/messages/messageDetails?id=${hash}`;
+    case 'rfld':
       return `https://fld.ever.live/messages/messageDetails?id=${hash}`;
     case 'localnet':
       return `https://127.0.0.1/messages/messageDetails?id=${hash}`;
@@ -53,9 +55,11 @@ export const accountExplorerLink = (network: string, address: Address) => {
     case 'mainnet':
       return `https://everscan.io/accounts/${address.toString()}`;
     case 'testnet':
-      return `https://dev.tonscan.io/accounts/${address.toString()}`;
+      return `https://testnet.everscan.io/accounts/${address.toString()}`;
     case 'fld':
       return `https://fld.ever.live/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
+    case 'rfld':
+      return `https://rfld.ever.live/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
     case 'localnet':
       return `https://127.0.0.1/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
     default:
