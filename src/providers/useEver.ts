@@ -1,7 +1,47 @@
 import { ref, shallowRef, watch } from 'vue';
-import { Permissions, ProviderRpcClient } from 'everscale-inpage-provider';
+import { Permissions, Provider, ProviderRpcClient } from 'everscale-inpage-provider';
 
-const ever = new ProviderRpcClient();
+const getProvider = (): Provider | undefined => window.__ever || (window as any).__venom || window.ton;
+
+let ensurePageLoaded: Promise<void>;
+if (document.readyState === 'complete') {
+  ensurePageLoaded = Promise.resolve();
+} else {
+  ensurePageLoaded = new Promise<void>(resolve => {
+    window.addEventListener('load', () => {
+      resolve();
+    });
+  });
+}
+
+// NOTE: it uses fallback to allow using other extensions
+const ever = new ProviderRpcClient({
+  forceUseFallback: true,
+  fallback: async () => {
+    let provider = getProvider();
+    if (provider != null) {
+      return provider;
+    }
+
+    await ensurePageLoaded;
+
+    return new Promise<Provider>(resolve => {
+      provider = getProvider();
+      if (provider != null) {
+        return resolve(provider);
+      }
+
+      if (window.__hasEverscaleProvider === true || window.hasTonProvider === true) {
+        const eventName = window.__hasEverscaleProvider === true ? 'ever#initialized' : 'ton#initialized';
+        window.addEventListener(eventName, _ => {
+          resolve(getProvider());
+        });
+      }
+
+      // infinite promise
+    });
+  }
+});
 
 const connectToWallet = async () => {
   await ever.requestPermissions({
