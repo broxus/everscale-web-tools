@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { TokensObject } from 'everscale-inpage-provider';
 
 import { useEver } from '../providers/useEver';
-import { makeStructure, convertError, deepCopy, toNano, checkAddress } from '../common';
+import { makeStructure, convertError, deepCopy, toNano, checkAddress, rewriteAbiUrl } from '../common';
 
 import ExecutorSidebar from './ExecutorSidebar.vue';
 import ExecutorAbiForm from './ExecutorAbiForm.vue';
@@ -44,10 +44,31 @@ const filterField = ref<HTMLDivElement>();
 const functions = ref<FunctionState[]>([]);
 
 watch(
-  () => currentRoute.value.params,
-  (newParams: object, oldParams?: object) => {
-    const newAddress = newParams['address'];
-    if (newAddress != oldParams?.['address']) {
+  () => [currentRoute.value.params, currentRoute.value.query],
+  ([newParams, newQuery], old) => {
+    const defaultAbi = newQuery['abi'];
+    if (typeof defaultAbi === 'string' && abi.value == null) {
+      try {
+        const abiUrl = rewriteAbiUrl(new URL(defaultAbi));
+        if (abiUrl.protocol != 'https:') {
+          throw new Error('Only https requests are allowed for `abi` param');
+        }
+
+        fetch(abiUrl.toString(), {})
+          .then(res => res.text())
+          .then(text => {
+            if (abi.value == null) {
+              abi.value = text;
+            }
+          })
+          .catch(console.error);
+      } catch (e: any) {
+        console.error(e);
+      }
+    }
+
+    const newAddress = newParams['address'] as string;
+    if (newAddress != old?.[0]?.['address']) {
       address.value = newAddress != null && checkAddress(newAddress) ? newAddress : undefined;
     }
   },

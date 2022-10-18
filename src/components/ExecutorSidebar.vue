@@ -95,8 +95,12 @@ watch(
       methods.value = undefined;
       return;
     }
-    const parsed = JSON.parse(abi);
-    methods.value = parsed.functions.map(f => f.name);
+    try {
+      const parsed = JSON.parse(abi);
+      methods.value = parsed.functions.map(f => f.name);
+    } catch {
+      methods.value = undefined;
+    }
   },
   {
     immediate: true

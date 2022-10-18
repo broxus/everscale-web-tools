@@ -33,6 +33,14 @@ export const zeroPad = (num: number, places: number) => {
   return Array(+(zero > 0 && zero)).join('0') + num;
 };
 
+const BLOB_PART = /\/blob\//;
+export const rewriteAbiUrl = (address: URL) => {
+  if (address.origin == 'https://github.com' && address.pathname.endsWith('.abi.json')) {
+    return new URL(`https://raw.githubusercontent.com${address.pathname.replace(BLOB_PART, '/')}`);
+  }
+  return address;
+};
+
 export const transactionExplorerLink = (network: string, hash: string) => {
   switch (network) {
     case 'mainnet':
@@ -150,7 +158,7 @@ export function makeStructure(
     };
   } else if (checkType.endsWith(']')) {
     let endIndex = checkType.length - 2;
-    for (; endIndex > 0 && checkType[endIndex] != '['; --endIndex) {}
+    for (; endIndex > 0 && checkType[endIndex] != '['; --endIndex) { }
     const value = makeStructure(param, {
       useType: checkType.substring(0, endIndex)
     });

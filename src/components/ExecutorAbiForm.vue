@@ -2,6 +2,7 @@
 import { ref, shallowRef, watch } from 'vue';
 
 import * as core from '@core';
+import { rewriteAbiUrl } from '../common';
 
 enum LoadAbiType {
   FROM_FILE,
@@ -10,13 +11,6 @@ enum LoadAbiType {
 }
 
 const DEFAULT_ABI_NAME = 'abi1';
-const BLOB_PART = /\/blob\//;
-const convertLink = (address: URL) => {
-  if (address.origin == 'https://github.com' && address.pathname.endsWith('.abi.json')) {
-    return new URL(`https://raw.githubusercontent.com${address.pathname.replace(BLOB_PART, '/')}`);
-  }
-  return address;
-};
 
 const getAllAbis = () => Object.keys(localStorage);
 
@@ -118,7 +112,7 @@ async function loadAbiText(): Promise<string> {
   if (text != null) {
     return text;
   } else if (link != null) {
-    const url = convertLink(new URL(link));
+    const url = rewriteAbiUrl(new URL(link));
     return fetch(url.toString(), {}).then(res => res.text());
   } else if (file != null) {
     return new Promise<string | undefined>((resolve, reject) => {
