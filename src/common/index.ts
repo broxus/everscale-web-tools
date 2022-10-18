@@ -34,9 +34,15 @@ export const zeroPad = (num: number, places: number) => {
 };
 
 const BLOB_PART = /\/blob\//;
+const EVERSCAN_CONTRACT_PATH = /^\/contracts\/([0-9a-fA-F]{64})\/?$/;
 export const rewriteAbiUrl = (address: URL) => {
   if (address.origin == 'https://github.com' && address.pathname.endsWith('.abi.json')) {
     return new URL(`https://raw.githubusercontent.com${address.pathname.replace(BLOB_PART, '/')}`);
+  } else if (address.origin == 'https://everscan.io') {
+    const parsed = EVERSCAN_CONTRACT_PATH.exec(address.pathname);
+    if (parsed != null && parsed.length > 1) {
+      return new URL(`https://verify.everscan.io/abi/code_hash/${parsed[1]}`)
+    }
   }
   return address;
 };
