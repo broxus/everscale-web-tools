@@ -2,11 +2,10 @@ name: Publish
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -24,8 +23,8 @@ jobs:
       - name: Setup rust cache
         uses: Swatinem/rust-cache@v1
 
-      - name: Install custom wasm-pack
-        run: cargo install --git https://github.com/broxus/wasm-pack.git
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
 
       - name: Install NodeJS
         uses: actions/setup-node@v2
@@ -39,11 +38,6 @@ jobs:
 
       - name: Install binaryen
         run: sudo apt install binaryen
-
-      - name: Patch wasm-opt
-        run: |
-          mkdir -p ~/.cache/.wasm-pack/wasm-opt-32d2875cd5f86da0/
-          cp $(which wasm-opt) ~/.cache/.wasm-pack/wasm-opt-32d2875cd5f86da0/wasm-opt
 
       - name: Build wasm
         run: npm run wasm
