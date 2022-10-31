@@ -34,9 +34,20 @@ impl Entity {
 }
 
 fn parse_function(rule: Pair<Rule>) -> Result<ton_abi::Function, ParserError> {
-    let mut rules = rule.into_inner();
+    let mut rules = rule.into_inner().peekable();
 
     let function_name = rules.next().ok_or(ParserError::UnexpectedEof)?.as_str();
+    let function_id = match rules.peek() {
+        Some(rule) if rule.as_rule() == Rule::function_id => {
+            let rule = rule.as_str();
+            let id = u32::from_str_radix(rule.strip_prefix('#').unwrap_or(rule), 16)
+                .map_err(|_| ParserError::InvalidFunctionId)?;
+            rules.next();
+            Some(id)
+        }
+        Some(_) => None,
+        None => return Err(ParserError::UnexpectedEof),
+    };
     let inputs = parse_cell(rules.next().ok_or(ParserError::UnexpectedEof)?)?;
     let outputs = parse_cell(rules.next().ok_or(ParserError::UnexpectedEof)?)?;
     let abi_version = match rules.next() {
@@ -61,9 +72,14 @@ fn parse_function(rule: Pair<Rule>) -> Result<ton_abi::Function, ParserError> {
         output_id: 0,
     };
 
-    let id = function.get_function_id();
-    function.input_id = id & 0x7FFFFFFF;
-    function.output_id = id | 0x80000000;
+    if let Some(id) = function_id {
+        function.input_id = id;
+        function.output_id = id;
+    } else {
+        let id = function.get_function_id();
+        function.input_id = id & 0x7FFFFFFF;
+        function.output_id = id | 0x80000000;
+    }
 
     Ok(function)
 }
@@ -165,6 +181,8 @@ pub enum ParserError {
     EmptyTypesList,
     #[error("invalid abi version")]
     InvalidAbiVersion,
+    #[error("invalid function id")]
+    InvalidFunctionId,
     #[error("invalid type param")]
     InvalidTypeParam,
     #[error("invalid bit length")]

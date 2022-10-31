@@ -22,10 +22,11 @@ pub fn parse_frozen_state(account_boc: &str) -> Result<Option<FrozenState>, JsVa
     let account_stuff = parse_account_stuff(account_boc)?;
     match account_stuff.storage.state {
         ton_block::AccountState::AccountFrozen { state_init_hash } => {
-            let due_payment = match account_stuff.storage_stat.due_payment {
-                Some(due_payment) => Some(due_payment.to_string()),
-                None => None,
-            };
+            let due_payment = account_stuff
+                .storage_stat
+                .due_payment
+                .as_ref()
+                .map(ToString::to_string);
 
             let frozen_state = ObjectBuilder::new()
                 .set("stateHash", state_init_hash.to_hex_string())
