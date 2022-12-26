@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anyhow::{anyhow, Result};
 use serde_json::{Map, Value};
 use ton_block::*;
@@ -8,48 +10,81 @@ use wasm_bindgen::prelude::*;
 use shared::*;
 
 const BLOCK_TAG: u32 = 0x11ef55aa;
-const TRANSACTION_TAG: usize = 0x7;
+const TRANSACTION_TAG: u8 = 0x7;
 
-// const BLOCK_INFO_TAG: u32 = 0x9bc7a987;
-// const BLOCK_EXTRA_TAG: u32 = 0x4a33f6fd;
-// const VALUE_FLOW_TAG: u32 = 0xb8e48dfb;
-// const VALUE_FLOW_TAG_V2: u32 = 0xe0864f6d;
-// const TOPBLOCK_DESCR_SET_TAG: u32 = 0x4ac789f3;
+#[wasm_bindgen(typescript_custom_section)]
+const STRUCTURE_TYPE: &str = r#"
+export type StructureType =
+    | 'block'
+    | 'message'
+    | 'transaction'
+    | 'account';
+"#;
 
 #[wasm_bindgen]
-pub fn deserialize(boc: &str, structure_type: Option<String>) -> Result<Option<String>, JsValue> {
-    let boc = base64::decode(boc).handle_error()?;
-    let structure_type = match structure_type {
-        Some(structure_type) => structure_type,
-        None => try_detect_type(boc.clone()).handle_error()?.to_string(),
-    };
-    match_deserializer(&boc, structure_type.as_str()).handle_error()
+extern "C" {
+    #[wasm_bindgen(typescript_type = "StructureType | undefined")]
+    pub type OptionalStructureType;
 }
 
-fn try_detect_type(boc: Vec<u8>) -> Result<&'static str> {
-    let cell = deserialize_tree_of_cells(&mut &*boc)?;
-    let mut slice: SliceData = cell.into();
-    match slice.clone().get_next_u32()? {
-        BLOCK_TAG => return Ok("Block"),
-        _ => "",
+#[wasm_bindgen]
+pub fn deserialize(boc: &str, structure_type: OptionalStructureType) -> Result<String, JsValue> {
+    let boc = base64::decode(boc.trim()).handle_error()?;
+    let ty = match structure_type.as_string() {
+        Some(structure_type) => StructureType::from_str(structure_type.trim()).handle_error()?,
+        None => try_detect_type(&boc).handle_error()?,
     };
-    match slice.get_next_int(4)? as usize {
-        TRANSACTION_TAG => return Ok("Transaction"),
-        _ => "",
+    Ok(ty.deserialize(&boc).handle_error()?.to_string())
+}
+
+fn try_detect_type(mut boc: &[u8]) -> Result<StructureType> {
+    let cell = deserialize_tree_of_cells(&mut boc)?;
+
+    let slice: SliceData = cell.into();
+    if matches!(slice.clone().get_next_u32(), Ok(tag) if tag == BLOCK_TAG) {
+        return Ok(StructureType::Block);
     };
+
+    if matches!(slice.get_bits(0, 4), Ok(tag) if tag == TRANSACTION_TAG) {
+        return Ok(StructureType::Transaction);
+    }
+
     Err(anyhow!("Cannot detect structure type by tag"))
 }
 
-fn match_deserializer(boc: &[u8], structure_type: &str) -> Result<Option<String>> {
-    let result = match structure_type {
-        "Block" => Some(serialize_block_full(Block::construct_from_bytes(boc)?)?.to_string()),
-        "Message" => Some(serialize_message(Message::construct_from_bytes(boc)?)?.to_string()),
-        "Transaction" => Some(serialize_transaction(Transaction::construct_from_bytes(boc)?)?.to_string()),
-        "Account" => Some(serialize_account(Account::construct_from_bytes(boc)?)?.to_string()),
-        // "AccountStuff" => Some(serialize_account_stuff(AccountStuff::construct_from_bytes(&boc)?)?.to_string()),
-        _ => { None }
-    };
-    Ok(result)
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum StructureType {
+    Block,
+    Message,
+    Transaction,
+    Account,
+}
+
+impl FromStr for StructureType {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "block" => Self::Block,
+            "message" => Self::Message,
+            "transaction" => Self::Transaction,
+            "account" => Self::Account,
+            _ => return Err("Unknown structure type"),
+        })
+    }
+}
+
+impl StructureType {
+    fn deserialize(&self, boc: &[u8]) -> Result<Value> {
+        match self {
+            Self::Block => Block::construct_from_bytes(boc).and_then(serialize_block_full),
+            Self::Message => Message::construct_from_bytes(boc).and_then(serialize_message),
+            Self::Transaction => {
+                Transaction::construct_from_bytes(boc).and_then(serialize_transaction)
+            }
+            Self::Account => Account::construct_from_bytes(boc).and_then(serialize_account),
+        }
+    }
 }
 
 pub fn serialize_block_full(block: Block) -> Result<Value> {
@@ -66,14 +101,20 @@ pub fn serialize_block_full(block: Block) -> Result<Value> {
     let mut in_msgs = Map::new();
     in_msgs_descr.iterate_objects(|in_msg| {
         let message = in_msg.read_message()?;
-        in_msgs.insert(root_cell.repr_hash().to_hex_string(), serialize_message(message)?);
+        in_msgs.insert(
+            root_cell.repr_hash().to_hex_string(),
+            serialize_message(message)?,
+        );
         Ok(true)
     })?;
     let out_msgs_descr = extra.read_out_msg_descr()?;
     let mut out_msgs = Map::new();
     out_msgs_descr.iterate_objects(|out_msg| {
         if let Some(message) = out_msg.read_message()? {
-            out_msgs.insert(root_cell.repr_hash().to_hex_string(), serialize_message(message)?);
+            out_msgs.insert(
+                root_cell.repr_hash().to_hex_string(),
+                serialize_message(message)?,
+            );
         }
         Ok(true)
     })?;
@@ -81,7 +122,10 @@ pub fn serialize_block_full(block: Block) -> Result<Value> {
     let mut transactions = Map::new();
     acc_blocks.iterate_objects(|block| {
         block.transactions().iterate_objects(|InRefValue(tr)| {
-            transactions.insert(root_cell.repr_hash().to_hex_string(), serialize_transaction(tr)?);
+            transactions.insert(
+                root_cell.repr_hash().to_hex_string(),
+                serialize_transaction(tr)?,
+            );
             Ok(true)
         })
     })?;
@@ -161,22 +205,26 @@ fn serialize_account_storage(storage: &AccountStorage) -> Result<Value> {
             serde_json::json!({"type": "AccountUninit"})
         }
         AccountState::AccountActive { state_init, .. } => {
-            let special = state_init.special().map(|special| serde_json::json!({
-                         "tick": special.tick,
-                         "tock": special.tock,
-                     }));
+            let special = state_init.special().map(|special| {
+                serde_json::json!({
+                    "tick": special.tick,
+                    "tock": special.tock,
+                })
+            });
             serde_json::json!({
                 "type": "AccountActive",
                 "state_init": {
                     "split_depth": state_init.split_depth.clone().unwrap_or_default().0,
                     "special": special,
-                    "code": base64::encode(&serialize_toc(&state_init.code.clone().unwrap_or_default())?),
-                    "data": base64::encode(&serialize_toc(&state_init.data.clone().unwrap_or_default())?),
-                    "library": base64::encode(&serialize_toc(&state_init.library.serialize()?)?),
+                    "code": base64::encode(serialize_toc(&state_init.code.clone().unwrap_or_default())?),
+                    "data": base64::encode(serialize_toc(&state_init.data.clone().unwrap_or_default())?),
+                    "library": base64::encode(serialize_toc(&state_init.library.serialize()?)?),
                 }
             })
         }
-        AccountState::AccountFrozen { state_init_hash, .. } => {
+        AccountState::AccountFrozen {
+            state_init_hash, ..
+        } => {
             serde_json::json!({
                 "type": "AccountFrozen",
                 "state_init_hash": state_init_hash.to_hex_string(),
@@ -186,7 +234,11 @@ fn serialize_account_storage(storage: &AccountStorage) -> Result<Value> {
     map.insert("state".to_string(), state);
     map.insert(
         "init_code_hash".to_string(),
-        storage.init_code_hash.unwrap_or_default().to_hex_string().into(),
+        storage
+            .init_code_hash
+            .unwrap_or_default()
+            .to_hex_string()
+            .into(),
     );
     Ok(map.into())
 }

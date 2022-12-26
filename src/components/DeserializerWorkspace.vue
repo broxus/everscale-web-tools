@@ -20,20 +20,19 @@ const abiState = shallowRef<{
 
 const partial = ref<boolean>(false);
 
-enum TonBlockStructure {
-  Block = 'Block',
-  Message = 'Message',
-  Transaction = 'Transaction',
-  Account = 'Account',
-  // AccountStuff = 'AccountStuff',
-}
+const STRUCTURE_NAME: { [K in core.StructureType]: string } = {
+  block: 'Block',
+  message: 'Message',
+  transaction: 'Transaction',
+  account: 'Account',
+};
 
-function onSelectStructure(value: TonBlockStructure) {
+function onSelectStructure(value: core.StructureType) {
   selectedStructure.value = value != null ? value : undefined;
 }
 
 const structureSelectorVisible = ref<boolean>(false);
-const selectedStructure = ref<TonBlockStructure>(undefined);
+const selectedStructure = ref<core.StructureType>(undefined);
 
 const bocInput = ref<string>('');
 const bocState = shallowRef<{
@@ -64,9 +63,9 @@ watch([bocInput, abiState, partial, selectedStructure], async ([bocInput, { abi 
       let r = JSON.parse(core.deserialize(bocInput, selectedStructure));
       bocState.value = {
         decoded: JSON.stringify(r, (key, value) =>
-            typeof value === 'bigint'
-              ? value.toString()
-              : value,
+          typeof value === 'bigint'
+            ? value.toString()
+            : value,
           4
         ),
         error: undefined
@@ -164,7 +163,7 @@ const onPaste = (e: Event) => {
     pastedText = JSON.stringify(parsed, undefined, 4);
     abiInput.value = pastedText;
     e.preventDefault();
-  } catch (e: any) {}
+  } catch (e: any) { }
 };
 </script>
 
@@ -172,12 +171,7 @@ const onPaste = (e: Event) => {
   <div class="container is-fluid">
     <div class="tabs is-centered is-boxed is-fullwidth">
       <ul>
-        <li
-          v-for="(name, i) in Tabs"
-          :key="i"
-          :class="{'is-active' : name === activeTab}"
-          @click="activeTab = name"
-        >
+        <li v-for="(name, i) in Tabs" :key="i" :class="{ 'is-active': name === activeTab }" @click="activeTab = name">
           <a>{{ name }}</a>
         </li>
       </ul>
@@ -189,13 +183,8 @@ const onPaste = (e: Event) => {
         <div class="field">
           <label class="label">Enter function signature or cell ABI:</label>
           <div class="control">
-            <textarea
-              :class="['textarea', { 'is-danger': abiState.error != null }]"
-              spellcheck="false"
-              v-model="abiInput"
-              @paste="onPaste"
-              rows="5"
-            />
+            <textarea :class="['textarea', { 'is-danger': abiState.error != null }]" spellcheck="false"
+              v-model="abiInput" @paste="onPaste" rows="5" />
           </div>
           <pre v-if="abiState.error != null" class="help is-danger">{{ abiState.error }}</pre>
         </div>
@@ -212,27 +201,18 @@ const onPaste = (e: Event) => {
         <label class="label">Select structure:</label>
         <div :class="['dropdown', { 'is-active': structureSelectorVisible }]">
           <div class="dropdown-trigger">
-            <button
-              class="button"
-              aria-haspopup="true"
-              aria-controls="select-abi-dropdown"
-              @click="structureSelectorVisible = !structureSelectorVisible"
-              @blur="structureSelectorVisible = false"
-            >
-              <span>{{ selectedStructure == null ? 'Select Structure...' : selectedStructure }}</span>
+            <button class="button" aria-haspopup="true" aria-controls="select-abi-dropdown"
+              @click="structureSelectorVisible = !structureSelectorVisible" @blur="structureSelectorVisible = false">
+              <span>{{ selectedStructure == null ? 'Select Structure...' : STRUCTURE_NAME[selectedStructure] }}</span>
               <span class="icon is-small">
-            <i :class="['fas', structureSelectorVisible ? 'fa-angle-up' : 'fa-angle-down']" aria-hidden="true" />
-          </span>
+                <i :class="['fas', structureSelectorVisible ? 'fa-angle-up' : 'fa-angle-down']" aria-hidden="true" />
+              </span>
             </button>
           </div>
           <div class="dropdown-menu" id="select-abi-dropdown" role="menu">
             <div class="dropdown-content">
-              <a
-                v-for="(name, i) in TonBlockStructure"
-                :key="i"
-                class="dropdown-item is-flex is-align-items-center pr-4"
-                @mousedown="onSelectStructure(name)"
-              >
+              <a v-for="(name, value) in STRUCTURE_NAME" :key="value"
+                class="dropdown-item is-flex is-align-items-center pr-4" @mousedown="onSelectStructure(value)">
                 <span class="mr-5">{{ name }}</span>
               </a>
             </div>
@@ -247,12 +227,8 @@ const onPaste = (e: Event) => {
       <div class="field">
         <label class="label">Enter base64 encoded BOC:</label>
         <div class="control">
-          <textarea
-            :class="['textarea', { 'is-danger': bocState.error != null }]"
-            spellcheck="false"
-            v-model="bocInput"
-            rows="5"
-          />
+          <textarea :class="['textarea', { 'is-danger': bocState.error != null }]" spellcheck="false" v-model="bocInput"
+            rows="5" />
         </div>
         <p v-if="bocState.error != null" class="help is-danger">{{ bocState.error }}</p>
       </div>
