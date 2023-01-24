@@ -38,24 +38,19 @@ const balance = computed(() => fromNano(selectedAccountBalance.value));
         <NavbarItem path="/signer">Signer</NavbarItem>
         <NavbarItem path="/debugger">Debugger</NavbarItem>
         <NavbarItem path="/microwave">Microwave</NavbarItem>
+        <NavbarItem path="/tip3">TIP3</NavbarItem>
       </div>
       <div class="navbar-end">
         <div class="navbar-item">
           <div class="buttons">
             <template v-if="hasProvider">
-              <button
-                v-if="selectedAccount == null"
-                :class="['button is-primary', { 'is-loading': isConnecting }]"
-                @click="doConnectToWallet"
-              >
+              <button v-if="selectedAccount == null" :class="['button is-primary', { 'is-loading': isConnecting }]"
+                @click="doConnectToWallet">
                 <strong>Connect wallet</strong>
               </button>
               <template v-else>
-                <button
-                  v-if="selectedAccountBalance != null"
-                  class="button is-white"
-                  v-clipboard="selectedAccountBalance"
-                >
+                <button v-if="selectedAccountBalance != null" class="button is-white"
+                  v-clipboard="selectedAccountBalance">
                   {{ balance }} EVER
                 </button>
                 <div class="field has-addons">
@@ -78,11 +73,8 @@ const balance = computed(() => fromNano(selectedAccountBalance.value));
               </template>
             </template>
             <template v-else>
-              <a
-                class="button is-light"
-                target="_blank"
-                href="https://chrome.google.com/webstore/detail/ever-wallet/cgeeodpfagjceefieflmdfphplkenlfk"
-              >
+              <a class="button is-light" target="_blank"
+                href="https://chrome.google.com/webstore/detail/ever-wallet/cgeeodpfagjceefieflmdfphplkenlfk">
                 <strong>Install wallet</strong>
                 <span class="icon"><i class="fa fa-external-link-alt" /></span>
               </a>

@@ -41,7 +41,7 @@ export const rewriteAbiUrl = (address: URL) => {
   } else if (address.origin == 'https://everscan.io') {
     const parsed = EVERSCAN_CONTRACT_PATH.exec(address.pathname);
     if (parsed != null && parsed.length > 1) {
-      return new URL(`https://verify.everscan.io/abi/code_hash/${parsed[1]}`)
+      return new URL(`https://verify.everscan.io/abi/code_hash/${parsed[1]}`);
     }
   }
   return address;
@@ -64,20 +64,21 @@ export const transactionExplorerLink = (network: string, hash: string) => {
   }
 };
 
-export const accountExplorerLink = (network: string, address: Address) => {
+export const accountExplorerLink = (network: string, address: Address | string) => {
+  const addr = address.toString();
   switch (network) {
     case 'mainnet':
-      return `https://everscan.io/accounts/${address.toString()}`;
+      return `https://everscan.io/accounts/${addr}`;
     case 'testnet':
-      return `https://testnet.everscan.io/accounts/${address.toString()}`;
+      return `https://testnet.everscan.io/accounts/${addr}`;
     case 'fld':
-      return `https://fld.ever.live/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
+      return `https://fld.ever.live/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
     case 'rfld':
-      return `https://rfld.ever.live/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
+      return `https://rfld.ever.live/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
     case 'localnet':
-      return `https://127.0.0.1/accounts/accountDetails?id=${encodeURIComponent(address.toString())}`;
+      return `https://127.0.0.1/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
     default:
-      return `https://everscan.io/accounts/${address.toString()}`;
+      return `https://everscan.io/accounts/${addr}`;
   }
 };
 
@@ -164,7 +165,7 @@ export function makeStructure(
     };
   } else if (checkType.endsWith(']')) {
     let endIndex = checkType.length - 2;
-    for (; endIndex > 0 && checkType[endIndex] != '['; --endIndex) { }
+    for (; endIndex > 0 && checkType[endIndex] != '['; --endIndex) {}
     const value = makeStructure(param, {
       useType: checkType.substring(0, endIndex)
     });

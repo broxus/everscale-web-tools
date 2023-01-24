@@ -7,6 +7,7 @@ import DeserializerWorkspace from './components/DeserializerWorkspace.vue';
 import SignerWorkspace from './components/SignerWorkspace.vue';
 import DebuggerWorkspace from './components/DebuggerWorkspace.vue';
 import MicrowaveWorkspace from './components/MicrowaveWorkspace.vue';
+import Tip3Workspace from './components/Tip3Workspace.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -18,7 +19,8 @@ const router = createRouter({
     { path: '/deserializer', component: DeserializerWorkspace },
     { path: '/signer', component: SignerWorkspace },
     { path: '/debugger', component: DebuggerWorkspace },
-    { path: '/microwave', component: MicrowaveWorkspace }
+    { path: '/microwave', component: MicrowaveWorkspace },
+    { name: 'tip3', path: '/tip3/:address?', component: Tip3Workspace }
   ]
 });
 

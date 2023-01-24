@@ -176,21 +176,13 @@ onUnmounted(() => {
             <div class="column is-8 is-full" v-if="accountAddress">
               <div class="field">
                 <div class="control">
-                  <input
-                    type="text"
-                    class="input"
-                    spellcheck="false"
-                    :disabled="inProgress"
-                    v-model="formState.statesApiUrl"
-                  />
+                  <input type="text" class="input" spellcheck="false" :disabled="inProgress"
+                    v-model="formState.statesApiUrl" />
                   <p class="help">States API</p>
                 </div>
               </div>
-              <button
-                class="button is-success"
-                :disabled="inProgress || contractState == null || !couldBeUnfrozen"
-                @click="doUnfreezeContract"
-              >
+              <button class="button is-success" :disabled="inProgress || contractState == null || !couldBeUnfrozen"
+                @click="doUnfreezeContract">
                 Unfreeze
               </button>
               <p v-if="progressStatus" class="help">{{ progressStatus }}</p>
@@ -203,11 +195,8 @@ onUnmounted(() => {
       <div v-else class="hero is-fullheight-with-navbar">
         <div class="hero-body is-justify-content-center">
           <div class="has-text-centered">
-            <button
-              :class="['button is-primary', inProgress && 'is-loading']"
-              :disabled="inProgress"
-              @click="doDeployMicrowave"
-            >
+            <button :class="['button is-primary', inProgress && 'is-loading']" :disabled="inProgress"
+              @click="doDeployMicrowave">
               Deploy microwave
             </button>
             <p v-if="inProgress && progressStatus != null" class="help">{{ progressStatus }}</p>

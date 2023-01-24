@@ -6,6 +6,7 @@ import { checkAddress } from '../common';
 const props = defineProps<{
   modelValue?: string;
   disabled: boolean;
+  hint?: string;
 }>();
 
 const emit = defineEmits<{
@@ -35,7 +36,7 @@ watch(
   <div class="field has-addons">
     <div class="control is-expanded">
       <input type="text" class="input" spellcheck="false" :disabled="disabled" v-model="input" />
-      <p class="help">Contract address</p>
+      <p class="help">{{ hint != null ? hint : 'Contract address' }}</p>
     </div>
     <div class="control">
       <button class="button is-info" :disabled="!canSearch" @click="canSearch && emit('update:modelValue', input)">
