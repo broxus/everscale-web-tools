@@ -27,11 +27,9 @@ function ensureMapParam(structure: Structure, value: TokenValue<string>): assert
   }
 }
 
-function findEntryByKey(key: TokenValue<string>): readonly [MapEntry | undefined, number] {
+function findMapEntry(i: number): MapEntry | undefined {
   ensureMapParam(props.structure, props.value);
-  const index = props.value.findIndex(([entryKey]) => entryKey == key);
-  const entry = props.value[index];
-  return [entry, index];
+  return (props.value as MapEntry[])[i];
 }
 
 function onInput(event: InputEvent) {
@@ -43,21 +41,21 @@ function onChangeTupleValue(name: string, value: TokenValue<string>) {
   (props.value as { [name: string]: TokenValue<string> })[name] = value;
 }
 
-function onChangeMapKey(oldKey: TokenValue<string>, newKey: TokenValue<string>) {
-  const [entry] = findEntryByKey(oldKey);
-  if (entry == null) return console.warn('Old key not found');
+function onChangeMapKey(i: number, newKey: TokenValue<string>) {
+  const entry = findMapEntry(i);
+  if (entry == null) return console.warn('Old entry not found');
   entry[0] = newKey;
 }
 
-function onChangeMapValue(key: TokenValue<string>, value: TokenValue<string>) {
-  const [entry] = findEntryByKey(key);
-  if (entry == null) return console.warn('Old key not found');
+function onChangeMapValue(i: number, value: TokenValue<string>) {
+  const entry = findMapEntry(i);
+  if (entry == null) return console.warn('Old entry not found');
   entry[1] = value;
 }
 
-function onDeleteMapEntry(key: TokenValue<string>) {
-  const [, index] = findEntryByKey(key);
-  (props.value as MapEntry[]).splice(index, 1);
+function onDeleteMapEntry(i: number) {
+  ensureMapParam(props.structure, props.value);
+  (props.value as MapEntry[]).splice(i, 1);
 }
 
 function onAddMapEntry() {
@@ -144,15 +142,15 @@ function onOptionalChange() {
             removable
             custom-name="Entry key"
             :value="item[0]"
-            @change="onChangeMapKey(item[0], $event)"
-            @removed="onDeleteMapEntry(item[0])"
+            @change="onChangeMapKey(i, $event)"
+            @removed="onDeleteMapEntry(i)"
           />
           <EntityBuilderItem
             class="is-flex-grow-5 is-value mb-3 ml-1"
             :structure="structure.value"
             custom-name="Entry value"
             :value="item[1]"
-            @change="onChangeMapValue(item[0], $event)"
+            @change="onChangeMapValue(i, $event)"
           />
         </div>
         <button class="button is-fullwidth is-small" @click="onAddMapEntry()">Add entry</button>
