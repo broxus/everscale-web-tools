@@ -142,15 +142,15 @@ function onOptionalChange() {
             removable
             custom-name="Entry key"
             :value="item[0]"
-            @change="onChangeMapKey(i, $event)"
-            @removed="onDeleteMapEntry(i)"
+            @change="onChangeMapKey(i as number, $event)"
+            @removed="onDeleteMapEntry(i as number)"
           />
           <EntityBuilderItem
             class="is-flex-grow-5 is-value mb-3 ml-1"
             :structure="structure.value"
             custom-name="Entry value"
             :value="item[1]"
-            @change="onChangeMapValue(i, $event)"
+            @change="onChangeMapValue(i as number, $event)"
           />
         </div>
         <button class="button is-fullwidth is-small" @click="onAddMapEntry()">Add entry</button>
