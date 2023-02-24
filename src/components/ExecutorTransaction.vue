@@ -4,6 +4,7 @@ import { Message, Transaction, serializeTransaction } from 'everscale-inpage-pro
 
 import { useEver } from '../providers/useEver';
 import {
+  CURRENCY,
   deepCopy,
   accountExplorerLink,
   convertAddress,
@@ -118,7 +119,7 @@ watch(
     <div class="columns mb-0">
       <div class="column is-family-monospace">
         <p>{{ displayedInfo.createdAt }}</p>
-        <p class="help">Fees: {{ displayedInfo.totalFees }} EVER</p>
+        <p class="help">Fees: {{ displayedInfo.totalFees }} {{ CURRENCY }}</p>
       </div>
       <div class="column is-narrow-fullhd">
         <div class="field is-grouped is-grouped-multiline">
@@ -172,7 +173,7 @@ watch(
         <div class="columns">
           <div class="column is-family-monospace">
             <template v-if="displayedInfo.inMsg.src != null">
-              <p>{{ displayedInfo.inMsg.value }} EVER</p>
+              <p>{{ displayedInfo.inMsg.value }} {{ CURRENCY }}</p>
               <p class="help noselect">
                 From:&nbsp;<router-link :to="displayedInfo.inMsg.src.executorLink" class="address-link"
                   >{{ displayedInfo.inMsg.src.address }} </router-link
@@ -206,7 +207,7 @@ watch(
         <div class="columns">
           <div class="column is-family-monospace">
             <template v-if="msg.dst != null">
-              <p>{{ msg.value }} EVER</p>
+              <p>{{ msg.value }} {{ CURRENCY }}</p>
               <p class="help noselect">
                 To:&nbsp;<router-link :to="msg.dst.executorLink" class="address-link"
                   >{{ msg.dst.address }} </router-link

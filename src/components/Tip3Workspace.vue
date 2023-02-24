@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { Address, ContractState, Subscription } from 'everscale-inpage-provider';
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue';
 import BigNumber from 'bignumber.js';
 import { useRouter } from 'vue-router';
 
-import ConnectWalletStub from './ConnectWalletStub.vue'
-import AddressSearchForm from './AddressSearchForm.vue'
+import ConnectWalletStub from './ConnectWalletStub.vue';
+import AddressSearchForm from './AddressSearchForm.vue';
 
-import { accountExplorerLink, checkAddress, convertAddress, convertError } from '../common';
+import { CURRENCY, accountExplorerLink, checkAddress, convertAddress, convertError } from '../common';
 import { useEver } from '../providers/useEver';
 import { useTip3, Tip3RootInfo, Tip3TransferParams } from '../providers/useTip3';
 
@@ -47,8 +47,8 @@ const displayedRootOwnerAddress = computed(() => {
   }
   return {
     address: convertAddress(owner),
-    explorerLink: accountExplorerLink(selectedNetwork.value, owner),
-  }
+    explorerLink: accountExplorerLink(selectedNetwork.value, owner)
+  };
 });
 
 const displayedTokenWalletAddress = computed(() => {
@@ -58,8 +58,8 @@ const displayedTokenWalletAddress = computed(() => {
   }
   return {
     address: convertAddress(walletAddress),
-    explorerLink: accountExplorerLink(selectedNetwork.value, walletAddress),
-  }
+    explorerLink: accountExplorerLink(selectedNetwork.value, walletAddress)
+  };
 });
 
 const displayedTokenWalletBalance = computed(() => {
@@ -77,14 +77,13 @@ const displayedTokenWalletBalance = computed(() => {
 
 const notifyRecipient = computed(() => {
   const currentFormData = formData.value;
-  return currentFormData.notify != null ? currentFormData.notify : currentFormData.payload != ''
-})
+  return currentFormData.notify != null ? currentFormData.notify : currentFormData.payload != '';
+});
 
 const subscriber = new ever.Subscriber();
 onUnmounted(() => {
-  subscriber.unsubscribe()
-})
-
+  subscriber.unsubscribe();
+});
 
 watch(
   () => currentRoute.value.params,
@@ -99,116 +98,123 @@ watch(
   }
 );
 
-
-watch(rootAddress, async (newRoot, _old, onCleanup) => {
-  if (newRoot == null || newRoot == '') {
-    rootContractInfo.value = undefined;
-    tokenWalletInfo.value = undefined;
-    rootContractError.value = undefined;
-    return;
-  }
-
-  const state = { addressChanged: false };
-  onCleanup(() => {
-    state.addressChanged = true;
-  })
-
-  inProgress.value = true;
-  try {
-    const info = await getTip3RootInfo(newRoot);
-    if (!state.addressChanged) {
-      rootContractInfo.value = info;
+watch(
+  rootAddress,
+  async (newRoot, _old, onCleanup) => {
+    if (newRoot == null || newRoot == '') {
+      rootContractInfo.value = undefined;
+      tokenWalletInfo.value = undefined;
       rootContractError.value = undefined;
-    }
-  } catch (e: any) {
-    rootContractInfo.value = undefined;
-    rootContractError.value = convertError(e);
-  } finally {
-    inProgress.value = false;
-  }
-}, {
-  immediate: true,
-});
-
-watch([rootAddress, () => selectedAccount.value?.address.toString()], async ([rootAddress, selectedAccount], _old, onCleanup) => {
-  tokenWalletInfo.value = undefined;
-  if (rootAddress == '' || selectedAccount == null) {
-    return;
-  }
-
-  const state: {
-    addressChanged: boolean,
-    tokenWalletSubscription?: Subscription<'contractStateChanged'>,
-  } = {
-    addressChanged: false,
-  };
-  onCleanup(() => {
-    state.addressChanged = true;
-    state?.tokenWalletSubscription?.unsubscribe().catch(console.error);
-  })
-
-  let addr: string;
-  try {
-    addr = await getTip3WalletAddress(rootAddress, selectedAccount);
-    if (state.addressChanged) {
       return;
     }
 
-    tokenWalletInfo.value = {
-      owner: selectedAccount,
-      walletAddress: addr,
-    };
-    tokenWalletError.value = undefined;
-  } catch (e) {
-    tokenWalletInfo.value = undefined;
-    tokenWalletError.value = convertError(e);
-    return;
-  }
+    const state = { addressChanged: false };
+    onCleanup(() => {
+      state.addressChanged = true;
+    });
 
-  const updateBalance = async (address: string, contractState?: ContractState): Promise<boolean> => {
-    if (address != addr || state.addressChanged) {
-      return false;
-    }
-
-    let balance: string | undefined = undefined;
-    if (contractState == null || contractState?.isDeployed === true) {
-      try {
-        balance = await getTip3WalletBalance(address);
-        if (state.addressChanged) {
-          return false;
-        }
-      } catch (e) {
-        console.error(e);
-        return true;
+    inProgress.value = true;
+    try {
+      const info = await getTip3RootInfo(newRoot);
+      if (!state.addressChanged) {
+        rootContractInfo.value = info;
+        rootContractError.value = undefined;
       }
+    } catch (e: any) {
+      rootContractInfo.value = undefined;
+      rootContractError.value = convertError(e);
+    } finally {
+      inProgress.value = false;
+    }
+  },
+  {
+    immediate: true
+  }
+);
+
+watch(
+  [rootAddress, () => selectedAccount.value?.address.toString()],
+  async ([rootAddress, selectedAccount], _old, onCleanup) => {
+    tokenWalletInfo.value = undefined;
+    if (rootAddress == '' || selectedAccount == null) {
+      return;
     }
 
-    let walletInfo = tokenWalletInfo.value;
-    if (walletInfo != null) {
-      walletInfo.balance = balance;
+    const state: {
+      addressChanged: boolean;
+      tokenWalletSubscription?: Subscription<'contractStateChanged'>;
+    } = {
+      addressChanged: false
+    };
+    onCleanup(() => {
+      state.addressChanged = true;
+      state?.tokenWalletSubscription?.unsubscribe().catch(console.error);
+    });
+
+    let addr: string;
+    try {
+      addr = await getTip3WalletAddress(rootAddress, selectedAccount);
+      if (state.addressChanged) {
+        return;
+      }
+
+      tokenWalletInfo.value = {
+        owner: selectedAccount,
+        walletAddress: addr
+      };
+      tokenWalletError.value = undefined;
+    } catch (e) {
+      tokenWalletInfo.value = undefined;
+      tokenWalletError.value = convertError(e);
+      return;
     }
-    return true;
-  };
 
-  if (!(await updateBalance(addr))) {
-    return;
+    const updateBalance = async (address: string, contractState?: ContractState): Promise<boolean> => {
+      if (address != addr || state.addressChanged) {
+        return false;
+      }
+
+      let balance: string | undefined = undefined;
+      if (contractState == null || contractState?.isDeployed === true) {
+        try {
+          balance = await getTip3WalletBalance(address);
+          if (state.addressChanged) {
+            return false;
+          }
+        } catch (e) {
+          console.error(e);
+          return true;
+        }
+      }
+
+      let walletInfo = tokenWalletInfo.value;
+      if (walletInfo != null) {
+        walletInfo.balance = balance;
+      }
+      return true;
+    };
+
+    if (!(await updateBalance(addr))) {
+      return;
+    }
+
+    const tokenWalletSubscription = await ever.subscribe('contractStateChanged', {
+      address: new Address(addr)
+    });
+    if (state.addressChanged) {
+      tokenWalletSubscription.unsubscribe().catch(console.error);
+      return;
+    }
+
+    state.tokenWalletSubscription = tokenWalletSubscription;
+    tokenWalletSubscription.on('data', async ({ address, state: contractState }) => {
+      updateBalance(address.toString(), contractState);
+    });
+  },
+  {
+    immediate: true
   }
-
-  const tokenWalletSubscription = await ever.subscribe('contractStateChanged', {
-    address: new Address(addr)
-  });
-  if (state.addressChanged) {
-    tokenWalletSubscription.unsubscribe().catch(console.error);
-    return;
-  }
-
-  state.tokenWalletSubscription = tokenWalletSubscription;
-  tokenWalletSubscription.on('data', async ({ address, state: contractState }) => {
-    updateBalance(address.toString(), contractState);
-  });
-}, {
-  immediate: true,
-});
+);
 
 const openTip3Account = (address: string) => {
   push({ name: 'tip3', params: { address } });
@@ -240,7 +246,7 @@ const doTransferTip3Tokens = async () => {
       amount,
       payload: form.payload,
       notify: form.notify,
-      attachedAmount: form.attachedAmount,
+      attachedAmount: form.attachedAmount
     });
     formOutput.value = JSON.stringify(output, undefined, 4);
     transferError.value = undefined;
@@ -250,8 +256,7 @@ const doTransferTip3Tokens = async () => {
   } finally {
     transferInProgress.value = false;
   }
-}
-
+};
 </script>
 
 <template>
@@ -260,10 +265,13 @@ const doTransferTip3Tokens = async () => {
       <div class="container is-fluid">
         <div class="columns">
           <div class="column is-4 is-full">
-            <AddressSearchForm :disabled="inProgress" :modelValue="rootAddress"
-              @update:modelValue="openTip3Account($event)" hint="Token root address" />
+            <AddressSearchForm
+              :disabled="inProgress"
+              :modelValue="rootAddress"
+              @update:modelValue="openTip3Account($event)"
+              hint="Token root address"
+            />
             <div class="column" v-if="rootContractInfo != null">
-
               <div class="card">
                 <div class="card-content">
                   <p class="title">
@@ -278,13 +286,20 @@ const doTransferTip3Tokens = async () => {
                         <div>Owner:</div>
                       </div>
                       <div class="is-flex is-flex-direction-column ml-2">
-                        <div><b>{{ rootContractInfo.symbol }}</b></div>
-                        <div><b>{{ rootContractInfo.decimals }}</b></div>
-                        <div><b>{{ rootContractInfo.totalSupply }}</b></div>
                         <div>
-                          <a :href="displayedRootOwnerAddress.explorerLink" target="_blank" class="is-link">{{
-                              displayedRootOwnerAddress.address
-                          }}&nbsp;<span class="icon"><i class="fa fa-external-link-alt" /></span>
+                          <b>{{ rootContractInfo.symbol }}</b>
+                        </div>
+                        <div>
+                          <b>{{ rootContractInfo.decimals }}</b>
+                        </div>
+                        <div>
+                          <b>{{ rootContractInfo.totalSupply }}</b>
+                        </div>
+                        <div>
+                          <a :href="displayedRootOwnerAddress.explorerLink" target="_blank" class="is-link"
+                            >{{ displayedRootOwnerAddress.address }}&nbsp;<span class="icon"
+                              ><i class="fa fa-external-link-alt"
+                            /></span>
                           </a>
                         </div>
                       </div>
@@ -303,18 +318,20 @@ const doTransferTip3Tokens = async () => {
                       </div>
                       <div class="is-flex is-flex-direction-column ml-2">
                         <div>
-                          <a :href="displayedTokenWalletAddress.explorerLink" target="_blank" class="is-link">{{
-                              displayedTokenWalletAddress.address
-                          }}&nbsp;<span class="icon"><i class="fa fa-external-link-alt" /></span>
+                          <a :href="displayedTokenWalletAddress.explorerLink" target="_blank" class="is-link"
+                            >{{ displayedTokenWalletAddress.address }}&nbsp;<span class="icon"
+                              ><i class="fa fa-external-link-alt"
+                            /></span>
                           </a>
                         </div>
-                        <div><b>{{ displayedTokenWalletBalance }}</b></div>
+                        <div>
+                          <b>{{ displayedTokenWalletBalance }}</b>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-
             </div>
             <p v-if="rootContractError" class="help is-danger">{{ rootContractError }}</p>
           </div>
@@ -328,38 +345,62 @@ const doTransferTip3Tokens = async () => {
                 <div class="field">
                   <label class="label">Destination</label>
                   <div class="control">
-                    <input class="input" type="text" placeholder="Address" v-model.trim="formData.recipient"
-                      :disabled="transferInProgress">
+                    <input
+                      class="input"
+                      type="text"
+                      placeholder="Address"
+                      v-model.trim="formData.recipient"
+                      :disabled="transferInProgress"
+                    />
                   </div>
                 </div>
 
                 <div class="field">
                   <label class="label">Amount, {{ rootContractInfo?.symbol }}</label>
                   <div class="control">
-                    <input class="input" type="text" placeholder="Amount" v-model.trim="formData.amount"
-                      :disabled="transferInProgress">
+                    <input
+                      class="input"
+                      type="text"
+                      placeholder="Amount"
+                      v-model.trim="formData.amount"
+                      :disabled="transferInProgress"
+                    />
                   </div>
                 </div>
 
                 <div class="field">
                   <label class="label">Payload</label>
                   <div class="control">
-                    <input class="input" type="text" placeholder="BOC encoded payload" v-model.trim="formData.payload"
-                      :disabled="transferInProgress">
+                    <input
+                      class="input"
+                      type="text"
+                      placeholder="BOC encoded payload"
+                      v-model.trim="formData.payload"
+                      :disabled="transferInProgress"
+                    />
                   </div>
                 </div>
 
                 <div class="buttons">
                   <div class="field mb-0 mr-2 has-addons">
                     <div class="control">
-                      <input class="input" type="text" placeholder="Amount, EVER" :disabled="transferInProgress"
-                        v-model="formData.attachedAmount" />
+                      <input
+                        class="input"
+                        type="text"
+                        :placeholder="`Amount, ${CURRENCY}`"
+                        :disabled="transferInProgress"
+                        v-model="formData.attachedAmount"
+                      />
                     </div>
                     <div class="control is-unselectable">
                       <button class="button" :disabled="transferInProgress" @click="formData.notify = !notifyRecipient">
                         <label class="checkbox">
-                          <input type="checkbox" :disabled="transferInProgress" :checked="notifyRecipient"
-                            @change.prevent="" /></label>&nbsp;Notify
+                          <input
+                            type="checkbox"
+                            :disabled="transferInProgress"
+                            :checked="notifyRecipient"
+                            @change.prevent="" /></label
+                        >&nbsp;Notify
                       </button>
                     </div>
                     <div class="control">
@@ -389,7 +430,7 @@ const doTransferTip3Tokens = async () => {
 <style lang="scss">
 .tip3-workspace {
   .function-item {
-    &>label {
+    & > label {
       position: relative;
       display: flex;
       flex-direction: row;

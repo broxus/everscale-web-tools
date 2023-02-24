@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { TokensObject } from 'everscale-inpage-provider';
 
 import { useEver } from '../providers/useEver';
-import { makeStructure, convertError, deepCopy, toNano, checkAddress, rewriteAbiUrl } from '../common';
+import { CURRENCY, makeStructure, convertError, deepCopy, toNano, checkAddress, rewriteAbiUrl } from '../common';
 
 import ExecutorSidebar from './ExecutorSidebar.vue';
 import ExecutorAbiForm from './ExecutorAbiForm.vue';
@@ -290,7 +290,7 @@ onBeforeUnmount(() => {
                         <input
                           class="input"
                           type="text"
-                          placeholder="Amount, EVER"
+                          :placeholder="`Amount, ${CURRENCY}`"
                           :disabled="f.inProgress"
                           v-model="f.attached"
                         />

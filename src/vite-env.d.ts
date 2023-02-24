@@ -5,3 +5,11 @@ declare module '*.vue' {
   const component: DefineComponent<{}, {}, any>;
   export default component;
 }
+
+interface ImportMetaEnv {
+  readonly BYTIE_CURRENCY: string | undefined;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

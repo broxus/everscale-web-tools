@@ -3,7 +3,7 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import { Address, ContractState, Transaction, mergeTransactions } from 'everscale-inpage-provider';
 
 import { useEver } from '../providers/useEver';
-import { convertAddress, fromNano } from '../common';
+import { CURRENCY, convertAddress, fromNano } from '../common';
 
 import AddressSearchForm from './AddressSearchForm.vue';
 import ExecutorTransaction from './ExecutorTransaction.vue';
@@ -25,7 +25,7 @@ const preloadingTransactions = ref(false);
 const methods = shallowRef<string[]>();
 
 const displayedAddress = computed(() => convertAddress(props.address));
-const displayedBalance = computed(() => `${fromNano(state.value?.balance)} EVER`);
+const displayedBalance = computed(() => `${fromNano(state.value?.balance)} ${CURRENCY}`);
 
 const { ever } = useEver();
 

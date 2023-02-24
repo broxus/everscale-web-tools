@@ -3,6 +3,8 @@ import { AbiParam, Address, TokenValue } from 'everscale-inpage-provider';
 
 window.ObjectExt = { keys: Object.keys };
 
+export const CURRENCY = import.meta.env.BYTIE_CURRENCY || 'EVER';
+
 export const EMPTY_CELL = 'te6ccgEBAQEAAgAAAA==';
 export const DEFAULT_ADDRESS = '0:0000000000000000000000000000000000000000000000000000000000000000';
 

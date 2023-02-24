@@ -16,5 +16,6 @@ export default defineConfig({
       '@core': path.resolve(__dirname, 'core/pkg'),
       '@debugger': path.resolve(__dirname, 'debugger/pkg')
     }
-  }
+  },
+  envPrefix: 'BYTIE_'
 });

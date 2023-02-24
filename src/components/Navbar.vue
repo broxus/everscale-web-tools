@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { convertAddress, fromNano } from '../common';
+import { CURRENCY, convertAddress, fromNano } from '../common';
 
 import { useEver } from '../providers/useEver';
 
@@ -44,14 +44,20 @@ const balance = computed(() => fromNano(selectedAccountBalance.value));
         <div class="navbar-item">
           <div class="buttons">
             <template v-if="hasProvider">
-              <button v-if="selectedAccount == null" :class="['button is-primary', { 'is-loading': isConnecting }]"
-                @click="doConnectToWallet">
+              <button
+                v-if="selectedAccount == null"
+                :class="['button is-primary', { 'is-loading': isConnecting }]"
+                @click="doConnectToWallet"
+              >
                 <strong>Connect wallet</strong>
               </button>
               <template v-else>
-                <button v-if="selectedAccountBalance != null" class="button is-white"
-                  v-clipboard="selectedAccountBalance">
-                  {{ balance }} EVER
+                <button
+                  v-if="selectedAccountBalance != null"
+                  class="button is-white"
+                  v-clipboard="selectedAccountBalance"
+                >
+                  {{ balance }} {{ CURRENCY }}
                 </button>
                 <div class="field has-addons">
                   <div class="control">
@@ -73,8 +79,11 @@ const balance = computed(() => fromNano(selectedAccountBalance.value));
               </template>
             </template>
             <template v-else>
-              <a class="button is-light" target="_blank"
-                href="https://chrome.google.com/webstore/detail/ever-wallet/cgeeodpfagjceefieflmdfphplkenlfk">
+              <a
+                class="button is-light"
+                target="_blank"
+                href="https://chrome.google.com/webstore/detail/ever-wallet/cgeeodpfagjceefieflmdfphplkenlfk"
+              >
                 <strong>Install wallet</strong>
                 <span class="icon"><i class="fa fa-external-link-alt" /></span>
               </a>
