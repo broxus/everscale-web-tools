@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, watchEffect } from 'vue';
+import {ref, shallowRef, watchEffect} from 'vue';
 import * as core from '@core';
 
 import EntityBuilder from './EntityBuilder.vue';
@@ -57,7 +57,7 @@ const onPaste = (e: Event) => {
 
   <section class="section">
     <div class="container is-fluid">
-      <EntityBuilder v-if="state.abi != null" :abi="state.abi" />
+      <EntityBuilder :show-cell-value="true" v-if="state.abi != null" :abi="state.abi" />
     </div>
   </section>
 </template>
