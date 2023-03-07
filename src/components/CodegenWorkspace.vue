@@ -4,8 +4,6 @@ import * as core from '@core';
 import {AbiEntity} from '@core';
 import Codegen from "./Codegen.vue";
 
-import EntityBuilder from './EntityBuilder.vue';
-
 
 const abiInput = ref<string>('');
 const cellDescriptionInput = ref<string>('');
@@ -40,6 +38,30 @@ const onChange = (_: Event) => {
       abiEntity: abiEntity,
       cellDescription: text,
       abi: undefined,
+      cellError: undefined,
+      abiError: undefined,
+    }
+  }
+  catch (e: any) {
+    state.value = {
+      abiEntity: undefined,
+      cellDescription: undefined,
+      abi: undefined,
+      cellError: e.toString(),
+      abiError: undefined,
+    }
+  }
+
+}
+
+const onAbiChange = (_: Event) => {
+  let text = abiInput.value;
+  try {
+    abiInput.value = checkJsonAbi(text);
+    state.value = {
+      abiEntity: undefined,
+      cellDescription: undefined,
+      abi: text,
       cellError: undefined,
       abiError: undefined,
     }
@@ -91,10 +113,11 @@ const onPaste = (e: Event) => {
               <label class="label">Paste ABI here:</label>
               <div class="control">
                 <textarea
-                    :class="['textarea', { 'is-danger': state.error != null }]"
+                    :class="['textarea', { 'is-danger': state.abiError != null }]"
                     spellcheck="false"
                     v-model="abiInput"
                     @paste="onPaste"
+                    @input="onAbiChange"
                     rows="5"
                 />
               </div>
@@ -104,7 +127,7 @@ const onPaste = (e: Event) => {
               <label class="label">Or type cell description here: </label>
               <div class="control">
                 <textarea
-                    :class="['textarea', { 'is-danger': state.error != null }]"
+                    :class="['textarea', { 'is-danger': state.cellError != null }]"
                     spellcheck="false"
                     v-model="cellDescriptionInput"
                     @input="onChange"
@@ -114,10 +137,6 @@ const onPaste = (e: Event) => {
               <pre v-if="state.cellError != null" class="help is-danger">{{ state.cellError }}</pre>
             </div>
           </div>
-          <div class="is-fluid">
-            <EntityBuilder v-if="state.abiEntity != null" :abi="state.abiEntity" :show-cell-value="false" />
-          </div>
-
         </div>
 
         <div class="column">

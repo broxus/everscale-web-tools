@@ -57,7 +57,7 @@ const onPaste = (e: Event) => {
 
   <section class="section">
     <div class="container is-fluid">
-      <EntityBuilder :show-cell-value="true" v-if="state.abi != null" :abi="state.abi" />
+      <EntityBuilder v-if="state.abi != null" :abi="state.abi" />
     </div>
   </section>
 </template>

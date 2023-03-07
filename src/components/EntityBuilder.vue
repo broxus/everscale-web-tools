@@ -9,7 +9,6 @@ import EntityBuilderItem from './EntityBuilderItem.vue';
 
 const props = defineProps<{
   abi: core.AbiEntity;
-  showCellValue: boolean
 }>();
 
 const stateData = ref<object>();
@@ -86,7 +85,7 @@ watch(
       />
     </div>
 
-    <template v-if="props.showCellValue">
+    <template>
       <div class="entity-builder__output">
         <template v-if="abi.kind === 'empty'">
           <h1>Output (empty cell):</h1>
