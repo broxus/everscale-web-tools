@@ -1,13 +1,15 @@
+use std::collections::HashMap;
+use std::str::FromStr;
+use std::sync::Mutex;
+
 use anyhow::Result;
 use case::CaseExt;
 use codegen::{Field, Scope, Struct, Type};
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
-use std::collections::HashMap;
-use std::sync::Mutex;
+use shared::*;
 use ton_abi::{Contract, Event, Function, Param, ParamType};
 use wasm_bindgen::prelude::*;
-use shared::*;
 
 pub const EVER_TYPE_NAMES: &[&str] = &[
     "array", "int8", "uint8", "uint16", "uint32", "uint64", "uint128", "uint256", "gram", "grams",
@@ -30,32 +32,69 @@ fn helpers_mapping() -> &'static Mutex<HashMap<String, String>> {
     })
 }
 
-#[wasm_bindgen(js_name = "generateRustCodeFromParams")]
-pub fn generate_rust_code_from_params(params: &str) -> Result<String, JsValue> {
-    let entity = abi_parser::Entity::parse(params).handle_error()?;
-    match entity {
-        abi_parser::Entity::Cell(p) => {
-            let mut generator = Generator::default();
-            generator.generate_structs_from_params(p.as_slice()).handle_error()
+#[wasm_bindgen(typescript_custom_section)]
+const ABI_TYPE: &str = r#"
+export type AbiType =
+    | 'cell'
+    | 'contract';
+"#;
+
+enum AbiType {
+    Cell,
+    Contract,
+}
+
+impl FromStr for AbiType {
+    type Err = JsValue;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "cell" => Ok(Self::Cell),
+            "contract" => Ok(Self::Contract),
+            _ => Err("Unknown ABI type").handle_error(),
         }
-        _ => Ok("".to_string())
     }
 }
 
 #[wasm_bindgen(js_name = "generateRustCode")]
-pub fn generate_rust_code(abi: &str) -> Result<String, JsValue> {
-    let mut generator = Generator::load_contract(abi).handle_error()?;
+pub fn generate_rust_code(abi: &str, abi_type: &str) -> Result<String, JsValue> {
+    match AbiType::from_str(abi_type)? {
+        AbiType::Cell => {
+            let entity = abi_parser::Entity::parse(abi).handle_error()?;
+            match entity {
+                abi_parser::Entity::Cell(params) => generate_rust_code_from_params(&params),
+                _ => Ok("".to_string()),
+            }
+        }
+        AbiType::Contract => {
+            let abi = Contract::load(abi).handle_error()?;
+            generate_rust_code_from_abi(abi)
+        }
+    }
+}
+
+pub fn generate_rust_code_from_params(params: &[Param]) -> Result<String, JsValue> {
+    let mut generator = Generator::default();
+    generator
+        .generate_structs_from_params(params)
+        .handle_error()
+}
+
+pub fn generate_rust_code_from_abi(abi: Contract) -> Result<String, JsValue> {
+    let mut generator = Generator::load_contract(abi);
     let mut function_inputs = generator.generate_function_input_structs().handle_error()?;
 
-    let mut function_outputs = generator.generate_function_output_structs().handle_error()?;
+    let mut function_outputs = generator
+        .generate_function_output_structs()
+        .handle_error()?;
 
     let mut event_outputs = generator.generate_events_input_structs().handle_error()?;
 
     function_outputs.append(&mut function_inputs);
     function_outputs.append(&mut event_outputs);
 
-     let mut module = codegen::Module::new("");
-     let _ = &module
+    let mut module = codegen::Module::new("");
+    let _ = &module
         .import("serde", "Serialize")
         .import("serde", "Deserialize")
         .import("nekoton_abi", "UnpackAbi")
@@ -70,13 +109,16 @@ pub fn generate_rust_code(abi: &str) -> Result<String, JsValue> {
         .import("ton_abi", "ParamType")
         .import("std::collections", "HashMap")
         .import("once_cell::sync", "OnceCell");
-     let mut scope = module.scope();
+    let scope = module.scope();
 
-    generator.generate_structs(&mut scope, function_outputs).handle_error()?;
-    generator.generate_functions(&mut scope);
+    generator
+        .generate_structs(scope, function_outputs)
+        .handle_error()?;
+    generator.generate_functions(scope);
     Ok(scope.to_string())
 }
 
+#[derive(Default)]
 pub struct Generator {
     contract_functions: HashMap<String, Function>,
     contract_events: HashMap<String, Event>,
@@ -86,30 +128,16 @@ pub struct Generator {
     output_inner_struct_count: u32,
 }
 
-impl Default for Generator {
-    fn default() -> Self {
-        Self {
-            contract_functions: HashMap::default(),
-            contract_events: HashMap::default(),
-
-            output_function_inner_structs: HashMap::default(),
-            output_structs: HashMap::default(),
-            output_inner_struct_count: 0,
-        }
-    }
-}
-
 impl Generator {
-    pub fn load_contract(abi: &str) -> Result<Generator> {
-        let contract = Contract::load(abi)?;
-        Ok(Self {
+    pub fn load_contract(contract: Contract) -> Generator {
+        Self {
             contract_functions: contract.functions,
             contract_events: contract.events,
 
             output_function_inner_structs: HashMap::default(),
             output_structs: HashMap::default(),
             output_inner_struct_count: 0,
-        })
+        }
     }
 
     pub fn load_raw(functions: HashMap<String, Function>, events: HashMap<String, Event>) -> Self {
@@ -124,8 +152,6 @@ impl Generator {
     }
 
     pub fn generate_structs_from_params(&mut self, params: &[Param]) -> Result<String> {
-        let mut i = 0;
-
         let mut module = codegen::Module::new("");
         let _ = &module
             .import("serde", "Serialize")
@@ -145,11 +171,10 @@ impl Generator {
         let scope = module.scope();
 
         let mut properties = Vec::new();
-        for param in params {
+        for (i, param) in params.iter().enumerate() {
             let name = format!("value{i}");
             let property = generate_property(Some(name), &param.kind)?;
             properties.push(property);
-            i += 1;
         }
 
         let mut abi_struct = Struct::new("CommonStruct");
@@ -256,7 +281,11 @@ impl Generator {
         Ok(inputs)
     }
 
-    pub fn generate_structs(&mut self, scope: &mut Scope, struct_metas: Vec<GenericStruct>) -> Result<()> {
+    pub fn generate_structs(
+        &mut self,
+        scope: &mut Scope,
+        struct_metas: Vec<GenericStruct>,
+    ) -> Result<()> {
         for meta in struct_metas {
             let mut abi_struct = Struct::new(&meta.name);
             abi_struct
@@ -285,33 +314,24 @@ impl Generator {
         &mut self,
         initial_type_desc: &mut &str,
         property: &StructProperty,
-        abi_struct: &mut Struct,
     ) -> Result<String> {
         let ty = match property {
             StructProperty::Simple { rust_type_name, .. } => {
-                initial_type_desc.replace("{}", &rust_type_name)
+                initial_type_desc.replace("{}", rust_type_name)
             }
             StructProperty::Array {
                 internal_struct_property,
                 ..
             } => {
                 let initial_type = initial_type_desc.replace("{}", "Vec<{}>");
-                self.get_type(
-                    &mut initial_type.as_ref(),
-                    internal_struct_property,
-                    abi_struct,
-                )?
+                self.get_type(&mut initial_type.as_ref(), internal_struct_property)?
             }
             StructProperty::Option {
                 internal_struct_property,
                 ..
             } => {
                 let initial_type = initial_type_desc.replace("{}", "Option<{}>");
-                self.get_type(
-                    &mut initial_type.as_ref(),
-                    internal_struct_property,
-                    abi_struct,
-                )?
+                self.get_type(&mut initial_type.as_ref(), internal_struct_property)?
             }
             StructProperty::Tuple { internal_types, .. } => {
                 let name = self.generate_inner_struct(internal_types.as_slice())?;
@@ -324,7 +344,7 @@ impl Generator {
                 };
 
                 let mut initial_type = "{}";
-                let value_type = self.get_type(&mut initial_type, value.as_ref(), abi_struct)?;
+                let value_type = self.get_type(&mut initial_type, value.as_ref())?;
                 format!("HashMap<{}, {}>", key, value_type)
             }
         };
@@ -368,7 +388,11 @@ impl Generator {
         Ok(struct_name)
     }
 
-    fn generate_struct(&mut self, properties: &[StructProperty], abi_struct: &mut Struct) -> Result<()> {
+    fn generate_struct(
+        &mut self,
+        properties: &[StructProperty],
+        abi_struct: &mut Struct,
+    ) -> Result<()> {
         for sp in properties {
             let name = sp.abi_name();
             let rust_name = sp.rust_name();
@@ -383,12 +407,10 @@ impl Generator {
                 } else {
                     format!("#[abi(name = \"{name}\")]")
                 }
+            } else if let Some(derived) = derive_type.as_ref() {
+                format!("#[abi({derived})]")
             } else {
-                if let Some(derived) = derive_type.as_ref() {
-                    format!("#[abi({derived})]")
-                } else {
-                    format!("#[abi]")
-                }
+                "#[abi]".to_owned()
             };
             annotations.push(annotation);
 
@@ -405,8 +427,7 @@ impl Generator {
                     ..
                 } => {
                     let mut initial_type = "Vec<{}>";
-                    let field_type =
-                        self.get_type(&mut initial_type, internal_struct_property, abi_struct)?;
+                    let field_type = self.get_type(&mut initial_type, internal_struct_property)?;
                     let t = Type::new(field_type.as_str());
 
                     field.ty = t;
@@ -417,8 +438,7 @@ impl Generator {
                     ..
                 } => {
                     let mut initial_type = "Option<{}>";
-                    let field_type =
-                        self.get_type(&mut initial_type, internal_struct_property, abi_struct)?;
+                    let field_type = self.get_type(&mut initial_type, internal_struct_property)?;
 
                     let t = Type::new(field_type.as_str());
                     field.ty = t;
@@ -437,7 +457,7 @@ impl Generator {
                     };
 
                     let mut initial_type = "{}";
-                    let value_type = self.get_type(&mut initial_type, value.as_ref(), abi_struct)?;
+                    let value_type = self.get_type(&mut initial_type, value.as_ref())?;
                     let type_name = format!("HashMap<{}, {}>", key, value_type);
 
                     let t = Type::new(type_name.as_str());
@@ -597,7 +617,7 @@ fn params_to_string(params: &[Param]) -> String {
 
     let mut res = "vec![".to_string();
     let joined = params
-        .into_iter()
+        .iter()
         .map(|x| param_to_string(x.kind.clone(), &x.name))
         .join(",");
     res += &joined;
@@ -810,14 +830,14 @@ impl StructProperty {
         let cloned = snaked.clone();
 
         let stripped = snaked
-            .strip_prefix("_")
+            .strip_prefix('_')
             .map(|x| x.to_string())
             .unwrap_or(cloned);
 
         let cloned = stripped.clone();
 
         stripped
-            .strip_suffix("_")
+            .strip_suffix('_')
             .map(|x| x.to_string())
             .unwrap_or(cloned)
     }

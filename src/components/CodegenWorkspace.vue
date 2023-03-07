@@ -1,104 +1,42 @@
 <script setup lang="ts">
-import {ref, shallowRef, watchEffect} from 'vue';
+import { ref, shallowRef, watchEffect } from 'vue';
 import * as core from '@core';
-import {AbiEntity} from '@core';
+
 import Codegen from "./Codegen.vue";
 
+const ABI_TYPE: { [K in core.AbiType]: string } = {
+  cell: "Cell",
+  contract: "Contract",
+}
 
-const abiInput = ref<string>('');
-const cellDescriptionInput = ref<string>('');
+const abiTypeVisible = ref<boolean>(false);
+const selectedAbiType = ref<core.AbiType>('contract');
+
+const input = ref<string>('');
 const state = shallowRef<{
-  abi?: String;
-  abiEntity?: AbiEntity
-  cellDescription?: String,
-  abiError?: undefined;
-  cellError?: undefined;
+  generatedCode?: string;
+  error?: string;
 }>({});
 
-const checkJsonAbi = (text: string | undefined) => {
-  if (!text) return;
-  const parsed = JSON.parse(text);
-  return JSON.stringify(parsed, undefined, 4);
-}
-
 watchEffect(() => {
-  state.value = {
-    abiEntity: undefined,
-    cellDescription: undefined,
-    abi: undefined,
-    cellError: undefined
-  };
-});
-
-const onChange = (_: Event) => {
-  let text = cellDescriptionInput.value;
   try {
-    const abiEntity = core.parse(text);
+    const generatedCode = core.generateRustCode(input.value, selectedAbiType.value);
     state.value = {
-      abiEntity: abiEntity,
-      cellDescription: text,
-      abi: undefined,
-      cellError: undefined,
-      abiError: undefined,
-    }
-  }
-  catch (e: any) {
-    state.value = {
-      abiEntity: undefined,
-      cellDescription: undefined,
-      abi: undefined,
-      cellError: e.toString(),
-      abiError: undefined,
-    }
-  }
-
-}
-
-const onAbiChange = (_: Event) => {
-  let text = abiInput.value;
-  try {
-    abiInput.value = checkJsonAbi(text);
-    state.value = {
-      abiEntity: undefined,
-      cellDescription: undefined,
-      abi: text,
-      cellError: undefined,
-      abiError: undefined,
-    }
-  }
-  catch (e: any) {
-    state.value = {
-      abiEntity: undefined,
-      cellDescription: undefined,
-      abi: undefined,
-      cellError: undefined,
-      abiError: e.toString(),
-    }
-  }
-
-}
-
-const onPaste = (e: Event) => {
-  let pastedText = (e as ClipboardEvent).clipboardData.getData('text');
-  try {
-    abiInput.value = checkJsonAbi(pastedText);
-    state.value = {
-      abiEntity: undefined,
-      cellDescription: undefined,
-      abi: abiInput.value,
-      abiError: undefined,
-      cellError: undefined
+      generatedCode,
+      error: undefined
     };
-    e.preventDefault();
   } catch (e: any) {
     state.value = {
-      abiEntity: undefined,
-      cellDescription: undefined,
-      abi: undefined,
-      abiError: e.toString(),
-      cellError: undefined
+      generatedCode: undefined,
+      error: e.toString()
     };
   }
+});
+
+const onPaste = (e: Event) => {
+  const pastedText = (e as ClipboardEvent).clipboardData.getData('text');
+  input.value = pastedText;
+  e.preventDefault();
 };
 </script>
 
@@ -108,51 +46,49 @@ const onPaste = (e: Event) => {
       <div class="columns">
 
         <div class="column">
-          <div class="columns">
-            <div class="column">
-              <label class="label">Paste ABI here:</label>
-              <div class="control">
-                <textarea
-                    :class="['textarea', { 'is-danger': state.abiError != null }]"
-                    spellcheck="false"
-                    v-model="abiInput"
-                    @paste="onPaste"
-                    @input="onAbiChange"
-                    rows="5"
-                />
+          <div class="field">
+            <label class="label">Select structure:</label>
+            <div :class="['dropdown', { 'is-active': abiTypeVisible }]">
+              <div class="dropdown-trigger">
+                <button class="button" aria-haspopup="true" aria-controls="select-abi-dropdown"
+                  @click="abiTypeVisible = !abiTypeVisible" @blur="abiTypeVisible = false">
+                  <span>{{ selectedAbiType == null ? 'Select Structure...' : ABI_TYPE[selectedAbiType] }}</span>
+                  <span class="icon is-small">
+                    <i :class="['fas', abiTypeVisible ? 'fa-angle-up' : 'fa-angle-down']" aria-hidden="true" />
+                  </span>
+                </button>
               </div>
-              <pre v-if="state.abiError != null" class="help is-danger">{{ state.abiError }}</pre>
-            </div>
-            <div class="column">
-              <label class="label">Or type cell description here: </label>
-              <div class="control">
-                <textarea
-                    :class="['textarea', { 'is-danger': state.cellError != null }]"
-                    spellcheck="false"
-                    v-model="cellDescriptionInput"
-                    @input="onChange"
-                    rows="5"
-                />
+              <div class="dropdown-menu" id="select-abi-dropdown" role="menu">
+                <div class="dropdown-content">
+                  <a v-for="(name, value) in ABI_TYPE" :key="value"
+                    class="dropdown-item is-flex is-align-items-center pr-4" @mousedown="selectedAbiType = value">
+                    <span class="mr-5">{{ name }}</span>
+                  </a>
+                </div>
               </div>
-              <pre v-if="state.cellError != null" class="help is-danger">{{ state.cellError }}</pre>
             </div>
           </div>
-        </div>
 
-        <div class="column">
-          <codegen :abi="state.abi" :cell-description="state.cellDescription"></codegen>
+          <div class="field">
+            <label class="label">Enter contract or cell ABI:</label>
+            <div class="control">
+              <textarea :class="['textarea', { 'is-danger': state.error != null }]" spellcheck="false" v-model="input"
+                @paste="onPaste" rows="5" />
+            </div>
+            <pre v-if="state.error != null" class="help is-danger">{{ state.error }}</pre>
+          </div>
         </div>
-
       </div>
     </div>
   </section>
 
-
-
+  <section class="section">
+    <div class="container is-fluid">
+      <label class="label">Output rust code:</label>
+      <div class="control">
+        <pre
+          aria-hidden="true"><code class="language-html" id="highlighting-content">{{ state.generatedCode }}</code></pre>
+      </div>
+    </div>
+  </section>
 </template>
-
-
-
-<style scoped>
-
-</style>
