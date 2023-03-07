@@ -108,6 +108,7 @@ dependencies = [
  "getrandom",
  "itertools",
  "js-sys",
+ "once_cell",
  "serde_json",
  "shared",
  "ton_abi",

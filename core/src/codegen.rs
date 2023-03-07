@@ -2,7 +2,9 @@ use anyhow::Result;
 use case::CaseExt;
 use codegen::{Field, Scope, Struct, Type};
 use itertools::Itertools;
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
+use std::sync::Mutex;
 use ton_abi::{Contract, Event, Function, Param, ParamType};
 use wasm_bindgen::prelude::*;
 use shared::*;
@@ -11,6 +13,22 @@ pub const EVER_TYPE_NAMES: &[&str] = &[
     "array", "int8", "uint8", "uint16", "uint32", "uint64", "uint128", "uint256", "gram", "grams",
     "token", "tokens", "bool", "cell", "address", "string", "bytes",
 ];
+
+fn helpers_mapping() -> &'static Mutex<HashMap<String, String>> {
+    static INSTANCE: OnceCell<Mutex<HashMap<String, String>>> = OnceCell::new();
+    INSTANCE.get_or_init(|| {
+        let mut m = HashMap::new();
+        m.insert(
+            "uint160".to_string(),
+            "unpack_with=\"uint160_bytes\"".to_string(),
+        );
+        m.insert(
+            "uint160[]".to_string(),
+            "unpack_with=\"array_uint160_bytes\"".to_string(),
+        );
+        Mutex::new(m)
+    })
+}
 
 #[wasm_bindgen(js_name = "generateRustCodeFromParams")]
 pub fn generate_rust_code_from_params(params: &str) -> Result<String, JsValue> {
@@ -43,6 +61,7 @@ pub fn generate_rust_code(abi: &str) -> Result<String, JsValue> {
         .import("nekoton_abi", "UnpackAbi")
         .import("nekoton_abi", "UnpackAbiPlain")
         .import("nekoton_abi", "PackAbi")
+        .import("nekoton_abi", "PackAbiPlain")
         .import("nekoton_abi", "UnpackerError")
         .import("nekoton_abi", "UnpackerResult")
         .import("nekoton_abi", "BuildTokenValue")
@@ -53,7 +72,7 @@ pub fn generate_rust_code(abi: &str) -> Result<String, JsValue> {
         .import("once_cell::sync", "OnceCell");
      let mut scope = module.scope();
 
-    generator.generate_structs(&mut scope, function_outputs);
+    generator.generate_structs(&mut scope, function_outputs).handle_error()?;
     generator.generate_functions(&mut scope);
     Ok(scope.to_string())
 }
@@ -114,6 +133,7 @@ impl Generator {
             .import("nekoton_abi", "UnpackAbi")
             .import("nekoton_abi", "UnpackAbiPlain")
             .import("nekoton_abi", "PackAbi")
+            .import("nekoton_abi", "PackAbiPlain")
             .import("nekoton_abi", "UnpackerError")
             .import("nekoton_abi", "UnpackerResult")
             .import("nekoton_abi", "BuildTokenValue")
@@ -139,10 +159,10 @@ impl Generator {
             .derive("Debug")
             .derive("Clone")
             .derive("PackAbi")
-            .derive("UnpackAbi")
+            .derive("UnpackAbiPlain")
             .vis("pub");
 
-        self.generate_struct(properties.as_slice(), &mut abi_struct);
+        self.generate_struct(properties.as_slice(), &mut abi_struct)?;
 
         self.output_structs
             .insert(abi_struct.ty().name().to_string(), abi_struct);
@@ -236,7 +256,7 @@ impl Generator {
         Ok(inputs)
     }
 
-    pub fn generate_structs(&mut self, scope: &mut Scope, struct_metas: Vec<GenericStruct>) {
+    pub fn generate_structs(&mut self, scope: &mut Scope, struct_metas: Vec<GenericStruct>) -> Result<()> {
         for meta in struct_metas {
             let mut abi_struct = Struct::new(&meta.name);
             abi_struct
@@ -245,10 +265,10 @@ impl Generator {
                 .derive("Debug")
                 .derive("Clone")
                 .derive("PackAbi")
-                .derive("UnpackAbi")
+                .derive("UnpackAbiPlain")
                 .vis("pub");
 
-            self.generate_struct(meta.properties.as_slice(), &mut abi_struct);
+            self.generate_struct(meta.properties.as_slice(), &mut abi_struct)?;
             self.output_structs
                 .insert(abi_struct.ty().name().to_string(), abi_struct);
         }
@@ -258,6 +278,7 @@ impl Generator {
         for (_, str) in self.output_function_inner_structs.iter() {
             scope.push_struct(str.clone());
         }
+        Ok(())
     }
 
     fn get_type(
@@ -265,8 +286,8 @@ impl Generator {
         initial_type_desc: &mut &str,
         property: &StructProperty,
         abi_struct: &mut Struct,
-    ) -> String {
-        match property {
+    ) -> Result<String> {
+        let ty = match property {
             StructProperty::Simple { rust_type_name, .. } => {
                 initial_type_desc.replace("{}", &rust_type_name)
             }
@@ -279,7 +300,7 @@ impl Generator {
                     &mut initial_type.as_ref(),
                     internal_struct_property,
                     abi_struct,
-                )
+                )?
             }
             StructProperty::Option {
                 internal_struct_property,
@@ -290,10 +311,10 @@ impl Generator {
                     &mut initial_type.as_ref(),
                     internal_struct_property,
                     abi_struct,
-                )
+                )?
             }
             StructProperty::Tuple { internal_types, .. } => {
-                let name = self.generate_inner_struct(internal_types.as_slice());
+                let name = self.generate_inner_struct(internal_types.as_slice())?;
                 initial_type_desc.replace("{}", &name)
             }
             StructProperty::HashMap { key, value, .. } => {
@@ -303,47 +324,55 @@ impl Generator {
                 };
 
                 let mut initial_type = "{}";
-                let value_type = self.get_type(&mut initial_type, value.as_ref(), abi_struct);
+                let value_type = self.get_type(&mut initial_type, value.as_ref(), abi_struct)?;
                 format!("HashMap<{}, {}>", key, value_type)
             }
-        }
+        };
+
+        Ok(ty)
     }
 
-    fn generate_inner_struct(&mut self, properties: &[StructProperty]) -> String {
+    fn generate_inner_struct(&mut self, properties: &[StructProperty]) -> Result<String> {
         let key_name: String = properties
             .iter()
             .map(|x| x.abi_name().to_string() + &x.type_str())
             .reduce(|a, b| (a + &b))
             .unwrap_or_default();
 
-        if let Some((_, value)) = self
+        let existing_struct = self
             .output_function_inner_structs
             .iter()
-            .find(|(key, _)| key.as_str() == key_name)
-        {
-            value.ty().name().to_string()
-        } else {
-            self.output_inner_struct_count += 1;
-            let name = format!("InternalStruct{}", self.output_inner_struct_count);
-            let mut st = Struct::new(&name)
-                .derive("Serialize")
-                .derive("Deserialize")
-                .derive("Debug")
-                .derive("Clone")
-                .derive("UnpackAbiPlain")
-                .vis("pub")
-                .clone();
-            self.generate_struct(properties, &mut st);
-            self.output_function_inner_structs.insert(key_name.to_string(), st);
-            name
-        }
+            .find(|(key, _)| key.as_str() == key_name);
+
+        let struct_name = match existing_struct {
+            Some((_, value)) => value.ty().name().to_string(),
+            None => {
+                self.output_inner_struct_count += 1;
+                let name = format!("InternalStruct{}", self.output_inner_struct_count);
+                println!("{name}");
+                let mut st = Struct::new(&name)
+                    .derive("Serialize")
+                    .derive("Deserialize")
+                    .derive("Debug")
+                    .derive("Clone")
+                    .derive("UnpackAbi")
+                    .vis("pub")
+                    .clone();
+                self.generate_struct(properties, &mut st)?;
+                self.output_function_inner_structs
+                    .insert(key_name.to_string(), st);
+                name
+            }
+        };
+
+        Ok(struct_name)
     }
 
-    fn generate_struct(&mut self, properties: &[StructProperty], abi_struct: &mut Struct) {
+    fn generate_struct(&mut self, properties: &[StructProperty], abi_struct: &mut Struct) -> Result<()> {
         for sp in properties {
             let name = sp.abi_name();
             let rust_name = sp.rust_name();
-            let derive_type = sp.abi_derive_type_name();
+            let derive_type = sp.abi_derive_type_name()?;
 
             let mut field = Field::new(&("pub ".to_string() + &sp.rust_name()).to_string(), "()");
             let mut annotations = Vec::new();
@@ -377,7 +406,7 @@ impl Generator {
                 } => {
                     let mut initial_type = "Vec<{}>";
                     let field_type =
-                        self.get_type(&mut initial_type, internal_struct_property, abi_struct);
+                        self.get_type(&mut initial_type, internal_struct_property, abi_struct)?;
                     let t = Type::new(field_type.as_str());
 
                     field.ty = t;
@@ -389,14 +418,14 @@ impl Generator {
                 } => {
                     let mut initial_type = "Option<{}>";
                     let field_type =
-                        self.get_type(&mut initial_type, internal_struct_property, abi_struct);
+                        self.get_type(&mut initial_type, internal_struct_property, abi_struct)?;
 
                     let t = Type::new(field_type.as_str());
                     field.ty = t;
                     abi_struct.push_field(field);
                 }
                 StructProperty::Tuple { internal_types, .. } => {
-                    let name = self.generate_inner_struct(internal_types.as_slice());
+                    let name = self.generate_inner_struct(internal_types.as_slice())?;
                     let t = Type::new(name.as_str());
                     field.ty = t;
                     abi_struct.push_field(field);
@@ -408,7 +437,7 @@ impl Generator {
                     };
 
                     let mut initial_type = "{}";
-                    let value_type = self.get_type(&mut initial_type, value.as_ref(), abi_struct);
+                    let value_type = self.get_type(&mut initial_type, value.as_ref(), abi_struct)?;
                     let type_name = format!("HashMap<{}, {}>", key, value_type);
 
                     let t = Type::new(type_name.as_str());
@@ -417,6 +446,7 @@ impl Generator {
                 }
             }
         }
+        Ok(())
     }
 
     fn generate_function(&self, function: &Function) -> FunctionImpl {
@@ -748,10 +778,15 @@ impl StructProperty {
         };
         abi_name.as_str()
     }
-    pub fn abi_derive_type_name(&self) -> Option<String> {
-        match self {
+    pub fn abi_derive_type_name(&self) -> Result<Option<String>> {
+        let mapping = match self {
             StructProperty::Simple { internal_type, .. } => {
+                let mapping = helpers_mapping().lock().unwrap();
                 let ty = internal_type.to_string();
+                let abi_type = mapping.get(&ty);
+                if let Some(abi_type) = abi_type {
+                    return Ok(Some(abi_type.to_string()));
+                }
                 if EVER_TYPE_NAMES.contains(&ty.as_str()) {
                     Some(ty)
                 } else {
@@ -762,7 +797,8 @@ impl StructProperty {
             StructProperty::Option { .. } => Some("optional".to_string()),
             StructProperty::Tuple { .. } => None,
             StructProperty::HashMap { .. } => None,
-        }
+        };
+        Ok(mapping)
     }
     pub fn rust_name(&self) -> String {
         let snaked = self
