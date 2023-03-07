@@ -22,11 +22,11 @@ fn helpers_mapping() -> &'static Mutex<HashMap<String, String>> {
         let mut m = HashMap::new();
         m.insert(
             "uint160".to_string(),
-            "unpack_with=\"uint160_bytes\"".to_string(),
+            "with=\"uint160_bytes\"".to_string(),
         );
         m.insert(
             "uint160[]".to_string(),
-            "unpack_with=\"array_uint160_bytes\"".to_string(),
+            "with=\"array_uint160_bytes\"".to_string(),
         );
         Mutex::new(m)
     })
@@ -626,7 +626,7 @@ fn generate_property(abi_name: Option<String>, param: &ParamType) -> Result<Stru
             32 => "u32",
             64 => "u64",
             128 => "u128",
-            160 => "num_bigint::BigUint",
+            160 => "[u8; 20]",
             256 => "ton_types::UInt256",
             _ => "num_bigint::BigUint",
         }
