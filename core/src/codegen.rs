@@ -128,20 +128,13 @@ impl Generator {
 
         let mut module = codegen::Module::new("");
         let _ = &module
-            .import("serde", "Serialize")
-            .import("serde", "Deserialize")
             .import("nekoton_abi", "UnpackAbi")
             .import("nekoton_abi", "UnpackAbiPlain")
             .import("nekoton_abi", "PackAbi")
             .import("nekoton_abi", "PackAbiPlain")
-            .import("nekoton_abi", "UnpackerError")
-            .import("nekoton_abi", "UnpackerResult")
-            .import("nekoton_abi", "BuildTokenValue")
-            .import("nekoton_abi", "TokenValueExt")
             .import("ton_abi", "Param")
             .import("ton_abi", "ParamType")
-            .import("std::collections", "HashMap")
-            .import("once_cell::sync", "OnceCell");
+            .import("std::collections", "HashMap");
         let scope = module.scope();
 
         let mut properties = Vec::new();
@@ -680,7 +673,7 @@ fn generate_property(abi_name: Option<String>, param: &ParamType) -> Result<Stru
         ParamType::PublicKey => "ed25519_dalek::PublicKey".to_string(),
         ParamType::Optional(a) => {
             let internal_struct = generate_property(None, a.as_ref())?;
-            return Ok(StructProperty::Array {
+            return Ok(StructProperty::Option {
                 abi_name: abi_name.unwrap_or_default(),
                 internal_type: a.clone(),
                 internal_struct_property: Box::new(internal_struct),
