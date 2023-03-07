@@ -8,6 +8,7 @@ import SignerWorkspace from './components/SignerWorkspace.vue';
 import DebuggerWorkspace from './components/DebuggerWorkspace.vue';
 import MicrowaveWorkspace from './components/MicrowaveWorkspace.vue';
 import Tip3Workspace from './components/Tip3Workspace.vue';
+import CodegenWorkspace from "./components/CodegenWorkspace.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -20,7 +21,8 @@ const router = createRouter({
     { path: '/signer', component: SignerWorkspace },
     { path: '/debugger', component: DebuggerWorkspace },
     { path: '/microwave', component: MicrowaveWorkspace },
-    { name: 'tip3', path: '/tip3/:address?', component: Tip3Workspace }
+    { name: 'tip3', path: '/tip3/:address?', component: Tip3Workspace },
+    { name: 'codegen', path: '/codegen', component: CodegenWorkspace }
   ]
 });
 
