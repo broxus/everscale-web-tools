@@ -172,11 +172,9 @@ impl Generator {
 
         let mut abi_struct = Struct::new("CommonStruct");
         abi_struct
-            .derive("Serialize")
-            .derive("Deserialize")
             .derive("Debug")
             .derive("Clone")
-            .derive("PackAbi")
+            .derive("PackAbiPlain")
             .derive("UnpackAbiPlain")
             .vis("pub");
 
@@ -282,8 +280,6 @@ impl Generator {
         for meta in struct_metas {
             let mut abi_struct = Struct::new(&meta.name);
             abi_struct
-                .derive("Serialize")
-                .derive("Deserialize")
                 .derive("Debug")
                 .derive("Clone")
                 .derive("PackAbi")
@@ -364,11 +360,10 @@ impl Generator {
                 let name = format!("InternalStruct{}", self.output_inner_struct_count);
                 println!("{name}");
                 let mut st = Struct::new(&name)
-                    .derive("Serialize")
-                    .derive("Deserialize")
                     .derive("Debug")
                     .derive("Clone")
                     .derive("UnpackAbi")
+                    .derive("PackAbi")
                     .vis("pub")
                     .clone();
                 self.generate_struct(properties, &mut st)?;
