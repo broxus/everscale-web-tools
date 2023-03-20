@@ -21,7 +21,9 @@ type FunctionState = {
   name: string;
   structure: any[]; // `Structure` type here will make typescript cry
   input: TokensObject<string>;
+  jsonInput: string;
   collapsed: boolean;
+  asJson: boolean;
   inProgress: boolean;
   responsible: boolean;
   withSignature: boolean;
@@ -100,12 +102,13 @@ watch(
           structure: f.inputs.map(handleParam),
           input,
           collapsed: true,
+          asJson: false,
           inProgress: false,
           responsible: false,
           withSignature: true,
           attached: '1',
           bounce: false
-        };
+        } as FunctionState;
       });
     } catch (e) {
       functions.value = [];
@@ -125,7 +128,7 @@ async function execute(f: FunctionState, action: Action) {
     const functionCall = {
       abi: abi.value,
       method: f.name,
-      params: deepCopy(f.input)
+      params: f.asJson ? JSON.parse(f.jsonInput) : deepCopy(f.input)
     };
 
     let res: any;
@@ -191,12 +194,8 @@ onBeforeUnmount(() => {
       <div class="container is-fluid">
         <div class="columns">
           <div class="column is-4">
-            <ExecutorSidebar
-              :address="address"
-              :abi="abi"
-              @update:address="openAccount($event)"
-              @update:codeHash="codeHash = $event"
-            />
+            <ExecutorSidebar :address="address" :abi="abi" @update:address="openAccount($event)"
+              @update:codeHash="codeHash = $event" />
           </div>
           <div class="column is-8">
             <ExecutorAbiForm :code-hash="codeHash" @change="abi = $event" />
@@ -212,29 +211,25 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div
-                v-for="(f, i) in functions"
-                :key="i"
-                v-show="f.name.toLowerCase().includes(filter.toLowerCase())"
-                class="function-item box"
-              >
-                <label :class="['label', { 'mb-0': f.collapsed }]" @click="f.collapsed = !f.collapsed">
-                  <span class="icon" style="cursor: pointer">
+              <div v-for="(f, i) in functions" :key="i" v-show="f.name.toLowerCase().includes(filter.toLowerCase())"
+                class="function-item box">
+                <label :class="['label', { 'mb-0': f.collapsed }]">
+                  <span class="icon" style="cursor: pointer" @click="f.collapsed = !f.collapsed">
                     <i :class="['fa', f.collapsed ? 'fa-chevron-right' : 'fa-chevron-down']" />
                   </span>
-                  <span class="function-name">{{ f.name }}</span>
+                  <span class="function-name" @click="f.collapsed = !f.collapsed">{{ f.name }}</span>
+                  <span class="ml-auto"></span>
+                  <button class="button is-small" @click="f.asJson = !f.asJson">JSON</button>
                 </label>
 
                 <div v-show="!f.collapsed">
                   <div class="field">
-                    <div class="control">
-                      <EntityBuilderItem
-                        v-for="(item, j) in f.structure"
-                        :key="j"
-                        :structure="item"
-                        :value="f.input[item.name]"
-                        @change="f.input[item.name] = $event"
-                      />
+                    <div class="control" v-if="f.asJson">
+                      <textarea class="textarea" spellcheck="false" v-model="f.jsonInput" />
+                    </div>
+                    <div class="control" v-else>
+                      <EntityBuilderItem v-for="(item, j) in f.structure" :key="j" :structure="item"
+                        :value="f.input[item.name]" @change="f.input[item.name] = $event" />
                     </div>
                   </div>
 
@@ -243,20 +238,12 @@ onBeforeUnmount(() => {
                       <div class="control is-unselectable">
                         <button class="button" :disabled="f.inProgress" @click="f.responsible = !f.responsible">
                           <label class="checkbox">
-                            <input
-                              type="checkbox"
-                              :disabled="f.inProgress"
-                              :checked="f.responsible"
-                              @change.prevent="" /></label
-                          >&nbsp;Responsible
+                            <input type="checkbox" :disabled="f.inProgress" :checked="f.responsible"
+                              @change.prevent="" /></label>&nbsp;Responsible
                         </button>
                       </div>
                       <div class="control">
-                        <button
-                          class="button is-success"
-                          :disabled="f.inProgress"
-                          @click="execute(f, Action.RUN_LOCAL)"
-                        >
+                        <button class="button is-success" :disabled="f.inProgress" @click="execute(f, Action.RUN_LOCAL)">
                           Run local
                         </button>
                       </div>
@@ -266,20 +253,13 @@ onBeforeUnmount(() => {
                       <div class="control is-unselectable">
                         <button class="button" :disabled="f.inProgress" @click="f.withSignature = !f.withSignature">
                           <label class="checkbox">
-                            <input
-                              type="checkbox"
-                              :disabled="f.inProgress"
-                              :checked="f.withSignature"
-                              @change.prevent="" /></label
-                          >&nbsp;With signature
+                            <input type="checkbox" :disabled="f.inProgress" :checked="f.withSignature"
+                              @change.prevent="" /></label>&nbsp;With signature
                         </button>
                       </div>
                       <div class="control">
-                        <button
-                          class="button is-success"
-                          :disabled="f.inProgress"
-                          @click="execute(f, Action.SEND_EXTERNAL)"
-                        >
+                        <button class="button is-success" :disabled="f.inProgress"
+                          @click="execute(f, Action.SEND_EXTERNAL)">
                           Send external
                         </button>
                       </div>
@@ -287,31 +267,18 @@ onBeforeUnmount(() => {
 
                     <div class="field mb-0 mr-2 has-addons">
                       <div class="control">
-                        <input
-                          class="input"
-                          type="text"
-                          :placeholder="`Amount, ${CURRENCY}`"
-                          :disabled="f.inProgress"
-                          v-model="f.attached"
-                        />
+                        <input class="input" type="text" :placeholder="`Amount, ${CURRENCY}`" :disabled="f.inProgress"
+                          v-model="f.attached" />
                       </div>
                       <div class="control is-unselectable">
                         <button class="button" :disabled="f.inProgress" @click="f.bounce = !f.bounce">
                           <label class="checkbox">
-                            <input
-                              type="checkbox"
-                              :disabled="f.inProgress"
-                              :checked="f.bounce"
-                              @change.prevent="" /></label
-                          >&nbsp;Bounce
+                            <input type="checkbox" :disabled="f.inProgress" :checked="f.bounce"
+                              @change.prevent="" /></label>&nbsp;Bounce
                         </button>
                       </div>
                       <div class="control">
-                        <button
-                          class="button is-info"
-                          :disabled="f.inProgress"
-                          @click="execute(f, Action.SEND_INTERNAL)"
-                        >
+                        <button class="button is-info" :disabled="f.inProgress" @click="execute(f, Action.SEND_INTERNAL)">
                           Send
                         </button>
                       </div>
@@ -346,7 +313,7 @@ onBeforeUnmount(() => {
   }
 
   .function-item {
-    & > label {
+    &>label {
       position: relative;
       display: flex;
       flex-direction: row;
