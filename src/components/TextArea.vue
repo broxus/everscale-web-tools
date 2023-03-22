@@ -90,6 +90,10 @@ function adjustTextAreaHext() {
   }
 }
 
+function onInput(event: InputEvent) {
+  emit('update:modelValue', (event.target as HTMLTextAreaElement).value);
+}
+
 watch([() => props.modelValue], () => {
   adjustTextAreaHext();
 });
@@ -100,10 +104,5 @@ onMounted(() => {
 </script>
 
 <template>
-  <textarea
-    ref="input"
-    :value="props.modelValue"
-    @keydown="updateValue($event)"
-    @input="emit('update:modelValue', $event.target.value)"
-  ></textarea>
+  <textarea ref="input" :value="props.modelValue" @keydown="updateValue($event)" @input="onInput"></textarea>
 </template>
