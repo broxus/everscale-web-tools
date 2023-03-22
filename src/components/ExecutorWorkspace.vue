@@ -10,6 +10,7 @@ import ExecutorSidebar from './ExecutorSidebar.vue';
 import ExecutorAbiForm from './ExecutorAbiForm.vue';
 import EntityBuilderItem from './EntityBuilderItem.vue';
 import ConnectWalletStub from './ConnectWalletStub.vue';
+import TextArea from './TextArea.vue';
 
 enum Action {
   RUN_LOCAL,
@@ -21,7 +22,9 @@ type FunctionState = {
   name: string;
   structure: any[]; // `Structure` type here will make typescript cry
   input: TokensObject<string>;
+  jsonInput: string;
   collapsed: boolean;
+  asJson: boolean;
   inProgress: boolean;
   responsible: boolean;
   withSignature: boolean;
@@ -42,6 +45,10 @@ const filter = ref<string>('');
 const filterField = ref<HTMLDivElement>();
 
 const functions = ref<FunctionState[]>([]);
+
+function formatJson(data: any): string {
+  return JSON.stringify(data, undefined, 2);
+}
 
 watch(
   () => [currentRoute.value.params, currentRoute.value.query],
@@ -99,13 +106,15 @@ watch(
           name: f.name,
           structure: f.inputs.map(handleParam),
           input,
+          jsonInput: formatJson(input),
           collapsed: true,
+          asJson: false,
           inProgress: false,
           responsible: false,
           withSignature: true,
           attached: '1',
           bounce: false
-        };
+        } as FunctionState;
       });
     } catch (e) {
       functions.value = [];
@@ -125,7 +134,7 @@ async function execute(f: FunctionState, action: Action) {
     const functionCall = {
       abi: abi.value,
       method: f.name,
-      params: deepCopy(f.input)
+      params: f.asJson ? JSON.parse(f.jsonInput) : deepCopy(f.input)
     };
 
     let res: any;
@@ -173,6 +182,26 @@ function focusFilterField(event: KeyboardEvent) {
   }
 }
 
+function toggleJsonInput(state: FunctionState) {
+  state.asJson = !state.asJson;
+  state.collapsed = false;
+  if (state.asJson) {
+    state.jsonInput = formatJson(state.input);
+  } else {
+    try {
+      state.input = JSON.parse(state.jsonInput);
+    } catch (e) {}
+  }
+}
+
+function resetJsonInput(state: FunctionState) {
+  const input = {};
+  for (const item of state.structure) {
+    input[item.name] = item.defaultValue;
+  }
+  state.jsonInput = formatJson(input);
+}
+
 function openAccount(address: string) {
   push({ name: 'executor', params: { address } });
 }
@@ -218,16 +247,33 @@ onBeforeUnmount(() => {
                 v-show="f.name.toLowerCase().includes(filter.toLowerCase())"
                 class="function-item box"
               >
-                <label :class="['label', { 'mb-0': f.collapsed }]" @click="f.collapsed = !f.collapsed">
-                  <span class="icon" style="cursor: pointer">
-                    <i :class="['fa', f.collapsed ? 'fa-chevron-right' : 'fa-chevron-down']" />
-                  </span>
-                  <span class="function-name">{{ f.name }}</span>
-                </label>
+                <div :class="['label', { 'mb-0': f.collapsed }]">
+                  <div class="clickable" @click="f.collapsed = !f.collapsed">
+                    <span class="icon mr-3" style="cursor: pointer">
+                      <i :class="['fa', f.collapsed ? 'fa-chevron-right' : 'fa-chevron-down']" />
+                    </span>
+                    <span class="function-name">{{ f.name }}</span>
+                  </div>
+                  <button :class="['button is-small', { 'is-info': f.asJson }]" @click="toggleJsonInput(f)">
+                    JSON
+                  </button>
+                </div>
 
                 <div v-show="!f.collapsed">
                   <div class="field">
-                    <div class="control">
+                    <div class="control json-input" v-if="f.asJson">
+                      <div class="is-flex is-flex-direction-row">
+                        <span class="tag mb-0">JSON input:</span>
+                        <a class="tag is-delete mb-0" @click="resetJsonInput(f)" />
+                      </div>
+                      <TextArea
+                        class="textarea is-small is-family-monospace"
+                        spellcheck="false"
+                        rows="5"
+                        v-model="f.jsonInput"
+                      />
+                    </div>
+                    <div class="control" v-else>
                       <EntityBuilderItem
                         v-for="(item, j) in f.structure"
                         :key="j"
@@ -346,13 +392,21 @@ onBeforeUnmount(() => {
   }
 
   .function-item {
-    & > label {
+    & > .label {
       position: relative;
       display: flex;
       flex-direction: row;
       align-items: center;
 
       margin-bottom: 1em;
+
+      .clickable {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        width: 100%;
+      }
 
       .icon {
         position: absolute;
@@ -375,6 +429,13 @@ onBeforeUnmount(() => {
 
       .function-name {
         margin-left: 2.5em;
+      }
+    }
+
+    .json-input {
+      .tag {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
       }
     }
   }
