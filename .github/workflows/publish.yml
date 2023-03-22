@@ -39,6 +39,9 @@ jobs:
       - name: Install binaryen
         run: sudo apt install binaryen
 
+      - name: "TEMP: wasm-opt 0.11 fix"
+        run: sudo mkdir -p /usr/bin/bin && sudo ln -s /usr/bin/wasm-opt /usr/bin/bin/wasm-opt
+
       - name: Build wasm
         run: npm run wasm
 
