@@ -10,6 +10,7 @@ import ExecutorSidebar from './ExecutorSidebar.vue';
 import ExecutorAbiForm from './ExecutorAbiForm.vue';
 import EntityBuilderItem from './EntityBuilderItem.vue';
 import ConnectWalletStub from './ConnectWalletStub.vue';
+import TextArea from './TextArea.vue';
 
 enum Action {
   RUN_LOCAL,
@@ -44,6 +45,10 @@ const filter = ref<string>('');
 const filterField = ref<HTMLDivElement>();
 
 const functions = ref<FunctionState[]>([]);
+
+function formatJson(data: any): string {
+  return JSON.stringify(data, undefined, 2);
+}
 
 watch(
   () => [currentRoute.value.params, currentRoute.value.query],
@@ -101,6 +106,7 @@ watch(
           name: f.name,
           structure: f.inputs.map(handleParam),
           input,
+          jsonInput: formatJson(input),
           collapsed: true,
           asJson: false,
           inProgress: false,
@@ -176,6 +182,26 @@ function focusFilterField(event: KeyboardEvent) {
   }
 }
 
+function toggleJsonInput(state: FunctionState) {
+  state.asJson = !state.asJson;
+  state.collapsed = false;
+  if (state.asJson) {
+    state.jsonInput = formatJson(state.input);
+  } else {
+    try {
+      state.input = JSON.parse(state.jsonInput);
+    } catch (e) {}
+  }
+}
+
+function resetJsonInput(state: FunctionState) {
+  const input = {};
+  for (const item of state.structure) {
+    input[item.name] = item.defaultValue;
+  }
+  state.jsonInput = formatJson(input);
+}
+
 function openAccount(address: string) {
   push({ name: 'executor', params: { address } });
 }
@@ -194,8 +220,12 @@ onBeforeUnmount(() => {
       <div class="container is-fluid">
         <div class="columns">
           <div class="column is-4">
-            <ExecutorSidebar :address="address" :abi="abi" @update:address="openAccount($event)"
-              @update:codeHash="codeHash = $event" />
+            <ExecutorSidebar
+              :address="address"
+              :abi="abi"
+              @update:address="openAccount($event)"
+              @update:codeHash="codeHash = $event"
+            />
           </div>
           <div class="column is-8">
             <ExecutorAbiForm :code-hash="codeHash" @change="abi = $event" />
@@ -211,25 +241,46 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div v-for="(f, i) in functions" :key="i" v-show="f.name.toLowerCase().includes(filter.toLowerCase())"
-                class="function-item box">
-                <label :class="['label', { 'mb-0': f.collapsed }]">
-                  <span class="icon" style="cursor: pointer" @click="f.collapsed = !f.collapsed">
-                    <i :class="['fa', f.collapsed ? 'fa-chevron-right' : 'fa-chevron-down']" />
-                  </span>
-                  <span class="function-name" @click="f.collapsed = !f.collapsed">{{ f.name }}</span>
-                  <span class="ml-auto"></span>
-                  <button class="button is-small" @click="f.asJson = !f.asJson">JSON</button>
-                </label>
+              <div
+                v-for="(f, i) in functions"
+                :key="i"
+                v-show="f.name.toLowerCase().includes(filter.toLowerCase())"
+                class="function-item box"
+              >
+                <div :class="['label', { 'mb-0': f.collapsed }]">
+                  <div class="clickable" @click="f.collapsed = !f.collapsed">
+                    <span class="icon mr-3" style="cursor: pointer">
+                      <i :class="['fa', f.collapsed ? 'fa-chevron-right' : 'fa-chevron-down']" />
+                    </span>
+                    <span class="function-name">{{ f.name }}</span>
+                  </div>
+                  <button :class="['button is-small', { 'is-info': f.asJson }]" @click="toggleJsonInput(f)">
+                    JSON
+                  </button>
+                </div>
 
                 <div v-show="!f.collapsed">
                   <div class="field">
-                    <div class="control" v-if="f.asJson">
-                      <textarea class="textarea" spellcheck="false" v-model="f.jsonInput" />
+                    <div class="control json-input" v-if="f.asJson">
+                      <div class="is-flex is-flex-direction-row">
+                        <span class="tag mb-0">JSON input:</span>
+                        <a class="tag is-delete mb-0" @click="resetJsonInput(f)" />
+                      </div>
+                      <TextArea
+                        class="textarea is-small is-family-monospace"
+                        spellcheck="false"
+                        rows="5"
+                        v-model="f.jsonInput"
+                      />
                     </div>
                     <div class="control" v-else>
-                      <EntityBuilderItem v-for="(item, j) in f.structure" :key="j" :structure="item"
-                        :value="f.input[item.name]" @change="f.input[item.name] = $event" />
+                      <EntityBuilderItem
+                        v-for="(item, j) in f.structure"
+                        :key="j"
+                        :structure="item"
+                        :value="f.input[item.name]"
+                        @change="f.input[item.name] = $event"
+                      />
                     </div>
                   </div>
 
@@ -238,12 +289,20 @@ onBeforeUnmount(() => {
                       <div class="control is-unselectable">
                         <button class="button" :disabled="f.inProgress" @click="f.responsible = !f.responsible">
                           <label class="checkbox">
-                            <input type="checkbox" :disabled="f.inProgress" :checked="f.responsible"
-                              @change.prevent="" /></label>&nbsp;Responsible
+                            <input
+                              type="checkbox"
+                              :disabled="f.inProgress"
+                              :checked="f.responsible"
+                              @change.prevent="" /></label
+                          >&nbsp;Responsible
                         </button>
                       </div>
                       <div class="control">
-                        <button class="button is-success" :disabled="f.inProgress" @click="execute(f, Action.RUN_LOCAL)">
+                        <button
+                          class="button is-success"
+                          :disabled="f.inProgress"
+                          @click="execute(f, Action.RUN_LOCAL)"
+                        >
                           Run local
                         </button>
                       </div>
@@ -253,13 +312,20 @@ onBeforeUnmount(() => {
                       <div class="control is-unselectable">
                         <button class="button" :disabled="f.inProgress" @click="f.withSignature = !f.withSignature">
                           <label class="checkbox">
-                            <input type="checkbox" :disabled="f.inProgress" :checked="f.withSignature"
-                              @change.prevent="" /></label>&nbsp;With signature
+                            <input
+                              type="checkbox"
+                              :disabled="f.inProgress"
+                              :checked="f.withSignature"
+                              @change.prevent="" /></label
+                          >&nbsp;With signature
                         </button>
                       </div>
                       <div class="control">
-                        <button class="button is-success" :disabled="f.inProgress"
-                          @click="execute(f, Action.SEND_EXTERNAL)">
+                        <button
+                          class="button is-success"
+                          :disabled="f.inProgress"
+                          @click="execute(f, Action.SEND_EXTERNAL)"
+                        >
                           Send external
                         </button>
                       </div>
@@ -267,18 +333,31 @@ onBeforeUnmount(() => {
 
                     <div class="field mb-0 mr-2 has-addons">
                       <div class="control">
-                        <input class="input" type="text" :placeholder="`Amount, ${CURRENCY}`" :disabled="f.inProgress"
-                          v-model="f.attached" />
+                        <input
+                          class="input"
+                          type="text"
+                          :placeholder="`Amount, ${CURRENCY}`"
+                          :disabled="f.inProgress"
+                          v-model="f.attached"
+                        />
                       </div>
                       <div class="control is-unselectable">
                         <button class="button" :disabled="f.inProgress" @click="f.bounce = !f.bounce">
                           <label class="checkbox">
-                            <input type="checkbox" :disabled="f.inProgress" :checked="f.bounce"
-                              @change.prevent="" /></label>&nbsp;Bounce
+                            <input
+                              type="checkbox"
+                              :disabled="f.inProgress"
+                              :checked="f.bounce"
+                              @change.prevent="" /></label
+                          >&nbsp;Bounce
                         </button>
                       </div>
                       <div class="control">
-                        <button class="button is-info" :disabled="f.inProgress" @click="execute(f, Action.SEND_INTERNAL)">
+                        <button
+                          class="button is-info"
+                          :disabled="f.inProgress"
+                          @click="execute(f, Action.SEND_INTERNAL)"
+                        >
                           Send
                         </button>
                       </div>
@@ -313,13 +392,21 @@ onBeforeUnmount(() => {
   }
 
   .function-item {
-    &>label {
+    & > .label {
       position: relative;
       display: flex;
       flex-direction: row;
       align-items: center;
 
       margin-bottom: 1em;
+
+      .clickable {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        width: 100%;
+      }
 
       .icon {
         position: absolute;
@@ -342,6 +429,13 @@ onBeforeUnmount(() => {
 
       .function-name {
         margin-left: 2.5em;
+      }
+    }
+
+    .json-input {
+      .tag {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
       }
     }
   }
