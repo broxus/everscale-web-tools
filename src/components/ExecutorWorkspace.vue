@@ -34,6 +34,14 @@ type FunctionState = {
   error?: string;
 };
 
+type FieldsState = {
+  collapsed: boolean;
+  inProgress: boolean;
+  allowPartial: boolean;
+  output?: string;
+  error?: string;
+};
+
 const { ever, selectedAccount } = useEver();
 const { push, currentRoute } = useRouter();
 
@@ -45,6 +53,7 @@ const filter = ref<string>('');
 const filterField = ref<HTMLDivElement>();
 
 const functions = ref<FunctionState[]>([]);
+const fields = ref<FieldsState>();
 
 function formatJson(data: any): string {
   return JSON.stringify(data, undefined, 2);
@@ -116,6 +125,18 @@ watch(
           bounce: false
         } as FunctionState;
       });
+
+      const oldFields = fields.value;
+      fields.value =
+        parsed.fields != null
+          ? {
+              collapsed: oldFields != null ? oldFields.collapsed : true,
+              allowPartial: oldFields != null ? oldFields.allowPartial : false,
+              inProgress: false,
+              output: undefined,
+              error: undefined
+            }
+          : undefined;
     } catch (e) {
       functions.value = [];
     }
@@ -166,7 +187,31 @@ async function execute(f: FunctionState, action: Action) {
         break;
       }
     }
-    f.output = JSON.stringify(res, undefined, 2);
+    f.output = formatJson(res);
+    f.error = undefined;
+  } catch (e) {
+    f.output = undefined;
+    f.error = convertError(e);
+  } finally {
+    f.inProgress = false;
+  }
+}
+
+async function updateFields() {
+  const f = fields.value;
+  if (f == null || f.inProgress || abi.value == null || address.value == null) {
+    return;
+  }
+
+  f.inProgress = true;
+  try {
+    await ever.ensureInitialized();
+    const { fields } = await ever.rawApi.getContractFields({
+      address: address.value,
+      abi: abi.value,
+      allowPartial: f.allowPartial
+    });
+    f.output = formatJson(fields);
     f.error = undefined;
   } catch (e) {
     f.output = undefined;
@@ -238,6 +283,52 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="control">
                   <button class="button" @click="filter = ''">Clear</button>
+                </div>
+              </div>
+
+              <div class="function-item box" v-if="fields != null">
+                <div :class="['label', { 'mb-0': fields.collapsed }]">
+                  <div class="clickable" @click="fields.collapsed = !fields.collapsed">
+                    <span class="icon mr-3" style="cursor: pointer">
+                      <i :class="['fa', fields.collapsed ? 'fa-chevron-right' : 'fa-chevron-down']" />
+                    </span>
+                    <span class="function-name">Contract Fields</span>
+                  </div>
+                </div>
+
+                <div v-show="!fields.collapsed">
+                  <div class="buttons">
+                    <div class="field mb-0 mr-2 has-addons">
+                      <div class="control is-unselectable">
+                        <button
+                          class="button"
+                          :disabled="fields.inProgress"
+                          @click="fields.allowPartial = !fields.allowPartial"
+                        >
+                          <label class="checkbox">
+                            <input
+                              type="checkbox"
+                              :disabled="fields.inProgress"
+                              :checked="fields.allowPartial"
+                              @change.prevent="" /></label
+                          >&nbsp;Allow partial
+                        </button>
+                      </div>
+                      <div class="control">
+                        <button class="button is-success" :disabled="fields.inProgress" @click="updateFields">
+                          Unpack
+                        </button>
+                      </div>
+                    </div>
+
+                    <button class="button" @click="fields.output = undefined">Clear output</button>
+                  </div>
+
+                  <template v-if="fields.output != null || fields.error != null">
+                    <div class="divider mt-1 mb-1">output:</div>
+                    <pre v-if="fields.output != null" class="help">{{ fields.output }}</pre>
+                    <p v-if="fields.error != null" class="help is-danger">{{ fields.error }}</p>
+                  </template>
                 </div>
               </div>
 
