@@ -782,7 +782,7 @@ dependencies = [
 [[package]]
 name = "ton_block_json"
 version = "0.7.3"
-source = "git+https://github.com/broxus/ton-labs-block-json.git#e1e435318f49784ecd3ea07d2472664d9b56d04c"
+source = "git+https://github.com/broxus/ton-labs-block-json.git#f4f6581d2306e99fc44404982a9038bd1e0d8dc1"
 dependencies = [
  "anyhow",
  "base64",
