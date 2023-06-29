@@ -40,7 +40,7 @@ pub fn deserialize(boc: &str, structure_type: OptionalStructureType) -> Result<S
 fn try_detect_type(mut boc: &[u8]) -> Result<StructureType> {
     let cell = deserialize_tree_of_cells(&mut boc)?;
 
-    let slice: SliceData = cell.into();
+    let slice: SliceData = ton_types::SliceData::load_cell(cell)?;
     if matches!(slice.clone().get_next_u32(), Ok(tag) if tag == BLOCK_TAG) {
         return Ok(StructureType::Block);
     };
@@ -173,6 +173,7 @@ pub fn serialize_account(account: Account) -> Result<Value> {
         account: account.clone(),
         prev_account_state: None,
         boc: Vec::new(),
+        boc1: None,
         proof: None,
     };
     let mut map = db_serialize_account_ex("id", &set, SerializationMode::QServer)?;
@@ -214,7 +215,7 @@ fn serialize_account_storage(storage: &AccountStorage) -> Result<Value> {
             serde_json::json!({
                 "type": "AccountActive",
                 "state_init": {
-                    "split_depth": state_init.split_depth.clone().unwrap_or_default().0,
+                    "split_depth": state_init.split_depth.clone().unwrap_or_default().as_u32(),
                     "special": special,
                     "code": base64::encode(serialize_toc(&state_init.code.clone().unwrap_or_default())?),
                     "data": base64::encode(serialize_toc(&state_init.data.clone().unwrap_or_default())?),

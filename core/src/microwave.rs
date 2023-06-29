@@ -65,7 +65,7 @@ pub fn parse_account_stuff(boc: &str) -> Result<ton_block::AccountStuff, JsValue
     let bytes = base64::decode(boc.trim()).handle_error()?;
     ton_types::deserialize_tree_of_cells(&mut bytes.as_slice())
         .and_then(|cell| {
-            let slice = &mut cell.into();
+            let slice = &mut ton_types::SliceData::load_cell(cell)?;
             Ok(ton_block::AccountStuff {
                 addr: Deserializable::construct_from(slice)?,
                 storage_stat: Deserializable::construct_from(slice)?,

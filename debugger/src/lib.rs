@@ -16,7 +16,7 @@ pub fn execute(account: &str, tx: &str, config: &str) -> Result<JsValue, JsValue
 
     let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
     let executor = ton_executor::OrdinaryTransactionExecutor::new(
-        ton_executor::BlockchainConfig::with_config(config).handle_error()?,
+        ton_executor::BlockchainConfig::with_config(config, 42).handle_error()?,
     );
 
     let last_trans_lt = match account.stuff() {
@@ -117,7 +117,7 @@ pub fn make_transaction(data: ton_block::Transaction) -> Result<JsValue, JsValue
         };
 
         let value = match data.value() {
-            Some(value) => JsValue::from(value.grams.0.to_string()),
+            Some(value) => JsValue::from(value.grams.as_u128().to_string()),
             None => JsValue::from_str("0"),
         };
 
@@ -137,7 +137,7 @@ pub fn make_transaction(data: ton_block::Transaction) -> Result<JsValue, JsValue
 
     let info = data.read_description().handle_error()?;
 
-    let mut total_fees = data.total_fees.grams.0;
+    let mut total_fees = data.total_fees.grams.as_u128() as i128;
     let (exit_code, result_code) = match &info {
         ton_block::TransactionDescr::Ordinary(info) => {
             let exit_code = match &info.compute_ph {
@@ -149,12 +149,12 @@ pub fn make_transaction(data: ton_block::Transaction) -> Result<JsValue, JsValue
                     total_fees += phase
                         .total_fwd_fees
                         .as_ref()
-                        .map(|grams| grams.0)
+                        .map(|grams| grams.as_u128() as i128)
                         .unwrap_or_default();
                     total_fees -= phase
                         .total_action_fees
                         .as_ref()
-                        .map(|grams| grams.0)
+                        .map(|grams| grams.as_u128() as i128)
                         .unwrap_or_default();
 
                     Some(phase.result_code)

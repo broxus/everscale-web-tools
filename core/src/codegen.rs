@@ -20,10 +20,7 @@ fn helpers_mapping() -> &'static Mutex<HashMap<String, String>> {
     static INSTANCE: OnceCell<Mutex<HashMap<String, String>>> = OnceCell::new();
     INSTANCE.get_or_init(|| {
         let mut m = HashMap::new();
-        m.insert(
-            "uint160".to_string(),
-            "with=\"uint160_bytes\"".to_string(),
-        );
+        m.insert("uint160".to_string(), "with=\"uint160_bytes\"".to_string());
         m.insert(
             "uint160[]".to_string(),
             "with=\"array_uint160_bytes\"".to_string(),
@@ -744,7 +741,7 @@ pub enum StructProperty {
 
 impl StructProperty {
     pub fn type_str(&self) -> String {
-        let type_name = match self {
+        match self {
             StructProperty::Simple { internal_type, .. } => internal_type.type_signature(),
             StructProperty::Array { internal_type, .. } => {
                 format!("{}[]", internal_type.type_signature())
@@ -772,9 +769,7 @@ impl StructProperty {
                     value_type.type_signature()
                 )
             }
-        };
-
-        type_name
+        }
     }
     pub fn abi_name(&self) -> &str {
         let abi_name = match self {
