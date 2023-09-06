@@ -2,7 +2,7 @@
 import { ref, shallowRef, watch } from 'vue';
 
 import * as core from '@core';
-import { rewriteAbiUrl } from '../common';
+import { convertAddress, rewriteAbiUrl } from '../common';
 
 enum LoadAbiType {
   FROM_FILE,
@@ -15,6 +15,7 @@ const DEFAULT_ABI_NAME = 'abi1';
 const getAllAbis = () => Object.keys(localStorage);
 
 const props = defineProps<{
+  address?: string;
   codeHash?: string;
 }>();
 
@@ -36,9 +37,9 @@ const abiSelectorVisible = ref(false);
 const inProgress = ref(false);
 
 watch(
-  () => props.codeHash,
-  (codeHash, _, onCleanup) => {
-    if (codeHash == null) {
+  () => [props.codeHash, props.address],
+  ([codeHash, address], _, onCleanup) => {
+    if (address == null || codeHash == null) {
       return;
     }
 
@@ -51,16 +52,41 @@ watch(
       controller.abort();
     });
 
-    fetch(`https://verify.everscan.io/abi/code_hash/${codeHash}`, {
+    fetch(`https://verify.everscan.io/info/code_hash/${codeHash}`, {
       method: 'GET',
       signal: controller.signal
     })
-      .then(res => res.text())
-      .then(abi => {
-        if (!localState.codeHashChanged) {
-          everscanAbi.value = abi != 'null' ? abi : undefined;
+      .then(res => res.json())
+      .then(data => {
+        if (localState.codeHashChanged) {
+          return
         }
-      });
+
+        if (data && data.abi) {
+          everscanAbi.value = JSON.stringify(data.abi);
+        }
+
+        if (data && data.contract_name) {
+          const shortName = data.contract_name.split('/').pop().replace('.tsol', '');
+
+          if (shortName) {
+            document.title = `${shortName} ${convertAddress(address)} | Everscale tools`;
+          }
+        }
+      })
+      .catch(console.error);
+  },
+  {
+    immediate: true
+  }
+);
+
+watch(
+  () => [selectedAbi.value, props.address],
+  ([abiName, address]) => {
+    if (abiName && address) {
+      document.title = `${abiName} ${convertAddress(address)} | Everscale tools`;
+    }
   },
   {
     immediate: true

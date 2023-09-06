@@ -273,7 +273,11 @@ onBeforeUnmount(() => {
             />
           </div>
           <div class="column is-8">
-            <ExecutorAbiForm :code-hash="codeHash" @change="abi = $event" />
+            <ExecutorAbiForm
+              :address="address"
+              :code-hash="codeHash"
+              @change="abi = $event"
+            />
 
             <div v-if="abi != null && address != null" class="block">
               <div class="box field has-addons function-search pb-3">
