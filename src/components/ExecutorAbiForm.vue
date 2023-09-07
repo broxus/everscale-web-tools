@@ -67,7 +67,7 @@ watch(
         }
 
         if (data && data.contract_name) {
-          const shortName = data.contract_name.split('/').pop().replace('.tsol', '');
+          const shortName = data.contract_name.split('/').pop().replace(/\.(tsol|sol|fc|fif)$/, '');
 
           if (shortName) {
             document.title = `${shortName} ${convertAddress(address)} | Everscale tools`;
