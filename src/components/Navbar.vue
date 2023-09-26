@@ -39,6 +39,7 @@ const balance = computed(() => fromNano(selectedAccountBalance.value));
         <NavbarItem path="/debugger">Debugger</NavbarItem>
         <NavbarItem path="/microwave">Microwave</NavbarItem>
         <NavbarItem path="/tip3">TIP3</NavbarItem>
+        <NavbarItem path="/tip6">TIP6</NavbarItem>
         <NavbarItem path="/codegen">Codegen</NavbarItem>
       </div>
       <div class="navbar-end">
