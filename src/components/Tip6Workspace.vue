@@ -1,22 +1,23 @@
 <script setup lang="ts">
-import { ref, shallowRef, watchEffect } from 'vue';
+import { computed, ref, shallowRef, watchEffect } from 'vue';
+import * as core from '@core';
 
 const input = ref<string>('');
-const selectedMethods = ref<string[]>([])
+const selectedMethods = ref<number[]>([])
 const state = shallowRef<{
   error?: undefined;
-  methods: string[];
+  methods: core.FunctionEntry[];
 }>({
   methods: [],
 });
 
 watchEffect(() => {
   try {
-    const parsed = JSON.parse(input.value || '{}');
-    const methods = parsed.functions?.map(item => item.name) ?? []
+    const methods = input.value.trim() != '' ? core.getContractFunctions(input.value) : [];
 
     selectedMethods.value = []
     state.value = {
+      error: undefined,
       methods,
     }
   } catch (e: any) {
@@ -27,9 +28,11 @@ watchEffect(() => {
   }
 });
 
+const interfaceId = computed(() => core.computeTip6InterfaceId(new Uint32Array(selectedMethods.value)));
+
 function toggleAll() {
   selectedMethods.value = selectedMethods.value.length !== state.value.methods.length
-    ? state.value.methods
+    ? state.value.methods.map(item => item.id)
     : []
 }
 </script>
@@ -42,12 +45,8 @@ function toggleAll() {
           <div class="field">
             <label class="label">Enter JSON ABI:</label>
             <div class="control mb-3">
-              <textarea
-                spellcheck="false"
-                rows="5"
-                :class="['textarea', { 'is-danger': state.error != null }]"
-                v-model="input"
-                ></textarea>
+              <textarea spellcheck="false" rows="5" :class="['textarea', { 'is-danger': state.error != null }]"
+                v-model="input"></textarea>
             </div>
 
             <pre v-if="state.error != null" class="help is-danger">{{ state.error }}</pre>
@@ -57,27 +56,17 @@ function toggleAll() {
             <div class="label is-flex is-justify-content-space-between is-align-content-center">
               Methods:
 
-              <button
-                class="button is-small"
-                :disabled="state.methods.length === 0"
-                @click="toggleAll()"
-              >
+              <button class="button is-small" :disabled="state.methods.length === 0" @click="toggleAll()">
                 Toggle all
               </button>
             </div>
 
-            <div
-              class="mb-3"
-              v-for="method in state.methods"
-            >
+            <div class="mb-3" v-for="method in state.methods">
               <label class="button is-fullwidth is-justify-content-flex-start">
                 <div class="checkbox">
-                  <input
-                    type="checkbox"
-                    :id="method"
-                    :value="method"
-                    v-model="selectedMethods"
-                  /> {{ method }}
+                  <input type="checkbox" :id="method.name" :value="method.id" v-model="selectedMethods" />
+                  <code class="m-3">0x{{ method.id.toString(16).padStart(8, '0') }}</code>
+                  <span>{{ method.name }}</span>
                 </div>
               </label>
             </div>
@@ -85,7 +74,7 @@ function toggleAll() {
         </div>
         <div class="column">
           <label class="label">Interface ID:</label>
-          <pre class="encoded-data">Interface Id</pre>
+          <pre class="encoded-data">0x{{ interfaceId.toString(16).padStart(8, '0') }}</pre>
         </div>
       </div>
     </div>

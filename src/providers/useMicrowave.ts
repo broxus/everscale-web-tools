@@ -415,7 +415,6 @@ const deployMicrowave = (setStatus: (status?: string) => void) => {
         state_init: MICROWAVE_BOC
       })
       .sendExternal({
-        publicKey: '',
         withoutSignature: true,
         stateInit: FACTORY_BOC
       });

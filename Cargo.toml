@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = ["abi-parser", "shared", "core", "debugger"]
 
 [profile.release]
