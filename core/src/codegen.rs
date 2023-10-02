@@ -98,9 +98,13 @@ pub fn generate_rust_code_from_abi(abi: Contract) -> Result<String, JsValue> {
         .import("nekoton_abi", "UnpackAbiPlain")
         .import("nekoton_abi", "PackAbi")
         .import("nekoton_abi", "PackAbiPlain")
+        .import("nekoton_abi", "KnownParamType")
+        .import("nekoton_abi", "KnownParamTypePlain")
         .import("nekoton_abi", "UnpackerError")
         .import("nekoton_abi", "UnpackerResult")
         .import("nekoton_abi", "BuildTokenValue")
+        .import("nekoton_abi", "FunctionBuilder")
+        .import("nekoton_abi", "EventBuilder")
         .import("nekoton_abi", "TokenValueExt")
         .import("ton_abi", "Param")
         .import("ton_abi", "ParamType")
@@ -155,6 +159,8 @@ impl Generator {
             .import("nekoton_abi", "UnpackAbiPlain")
             .import("nekoton_abi", "PackAbi")
             .import("nekoton_abi", "PackAbiPlain")
+            .import("nekoton_abi", "KnownParamType")
+            .import("nekoton_abi", "KnownParamTypePlain")
             .import("ton_abi", "Param")
             .import("ton_abi", "ParamType")
             .import("std::collections", "HashMap");
@@ -173,6 +179,7 @@ impl Generator {
             .derive("Clone")
             .derive("PackAbiPlain")
             .derive("UnpackAbiPlain")
+            .derive("KnownParamTypePlain")
             .vis("pub");
 
         self.generate_struct(properties.as_slice(), &mut abi_struct)?;
@@ -230,7 +237,7 @@ impl Generator {
     }
 
     pub fn generate_function_output_structs(&self) -> Result<Vec<GenericStruct>> {
-        let mut inputs = Vec::new();
+        let mut outputs = Vec::new();
         for (func_name, function) in self.contract_functions.iter() {
             let mut function_output_properties = Vec::new();
             for i in function.outputs.iter() {
@@ -243,23 +250,23 @@ impl Generator {
                     //abi_name: Some(func_name.to_string()),
                     properties: function_output_properties,
                 };
-                inputs.push(input);
+                outputs.push(input);
             }
         }
 
-        Ok(inputs)
+        Ok(outputs)
     }
 
     pub fn generate_events_input_structs(&self) -> Result<Vec<GenericStruct>> {
         let mut inputs = Vec::new();
-        for (func_name, function) in self.contract_events.iter() {
+        for (func_name, event) in self.contract_events.iter() {
             let mut event_input_properties = Vec::new();
-            for i in function.inputs.iter() {
+            for i in event.inputs.iter() {
                 let property = generate_property(Some(i.name.clone()), &i.kind)?;
                 event_input_properties.push(property);
             }
             let input = GenericStruct {
-                name: format!("{}EventOutput", func_name).to_camel(),
+                name: format!("{}EventInput", func_name).to_camel(),
                 //abi_name: Some(func_name.to_string()),
                 properties: event_input_properties,
             };
@@ -281,6 +288,7 @@ impl Generator {
                 .derive("Clone")
                 .derive("PackAbi")
                 .derive("UnpackAbiPlain")
+                .derive("KnownParamTypePlain")
                 .vis("pub");
 
             self.generate_struct(meta.properties.as_slice(), &mut abi_struct)?;
@@ -361,6 +369,7 @@ impl Generator {
                     .derive("Clone")
                     .derive("UnpackAbi")
                     .derive("PackAbi")
+                    .derive("KnownParamType")
                     .vis("pub")
                     .clone();
                 self.generate_struct(properties, &mut st)?;
@@ -472,32 +481,37 @@ impl Generator {
                 ))
                 .clone();
         }
-        let _input = if !function.inputs.is_empty() {
-            let mut res = "let input = ".to_string();
-            let input = params_to_string(function.inputs.as_slice());
-            res += &input;
-            fun = fun.line(res).clone();
-            fun = fun.line("builder = builder.inputs(input);").clone();
-
+        if !function.inputs.is_empty() {
             let name = format!("{}FunctionInput", function.name)
                 .replace(|x| !char::is_alphanumeric(x), "_")
                 .to_camel();
-            Some(impl_gen(&input, &name))
-        } else {
-            None
+
+            if self.output_structs.get(&name).is_some() {
+                let line_name = format!("builder = builder.inputs({name}::param_type());");
+                fun = fun.line(line_name).clone();
+            } else {
+                let mut res = "let input = ".to_string();
+                let input = params_to_string(function.inputs.as_slice());
+                res += &input;
+                fun = fun.line(res).clone();
+                fun = fun.line("builder = builder.inputs(input);").clone();
+            }
         };
-        let _output = if !function.outputs.is_empty() {
-            let mut res = "let output = ".to_string();
-            let output = params_to_string(function.outputs.as_slice());
-            res += &output;
-            fun = fun.line(res).clone();
-            fun = fun.line("builder = builder.outputs(output);").clone();
+        if !function.outputs.is_empty() {
             let name = format!("{}FunctionOutput", function.name)
                 .replace(|x| !char::is_alphanumeric(x), "_")
                 .to_camel();
-            Some(impl_gen(&output, &name))
-        } else {
-            None
+
+            if self.output_structs.get(&name).is_some() {
+                let line_name = format!("builder = builder.outputs({name}::param_type());");
+                fun = fun.line(line_name).clone();
+            } else {
+                let mut res = "let output = ".to_string();
+                let output = params_to_string(function.outputs.as_slice());
+                res += &output;
+                fun = fun.line(res).clone();
+                fun = fun.line("builder = builder.outputs(output);").clone();
+            }
         };
         let struct_impl = fun
             .line("builder.headers(header)")
@@ -517,25 +531,29 @@ impl Generator {
             .line("static EVENT: OnceCell<ton_abi::Event> = OnceCell::new();")
             .line("EVENT.get_or_init(|| {")
             .clone();
-        let _input = if !(event.inputs.is_empty()) {
+        if !event.inputs.is_empty() {
             fun = fun
                 .line(format!(
                     "let mut builder = EventBuilder::new(\"{}\");",
                     event.name
                 ))
                 .clone();
-            let mut res = "let input = ".to_string();
-            let input = params_to_string(event.inputs.as_slice());
-            res += &input;
-            fun = fun.line(res).clone();
-            fun = fun.line("builder = builder.inputs(input);").clone();
             let name = format!("{}EventInput", event.name)
                 .replace(|x| !char::is_alphanumeric(x), "_")
                 .to_camel();
-            Some(impl_gen(&input, &name))
-        } else {
-            None
+
+            if self.output_structs.get(&name).is_some() {
+                let line_name = format!("builder = builder.inputs({name}::param_type());");
+                fun = fun.line(line_name).clone();
+            } else {
+                let mut res = "let input = ".to_string();
+                let input = params_to_string(event.inputs.as_slice());
+                res += &input;
+                fun = fun.line(res).clone();
+                fun = fun.line("builder = builder.inputs(input);").clone();
+            }
         };
+
         let fun = fun.line("builder.build()").line("})").clone();
         FunctionImpl {
             struct_impl: fun,
@@ -549,18 +567,6 @@ struct FunctionImpl {
     //builder_impl: (Option<codegen::Impl>, Option<codegen::Impl>), //Input output
 }
 
-fn impl_gen(tokens: &str, name: &str) -> codegen::Impl {
-    let mut imp = codegen::Impl::new(name);
-    let fun = codegen::Function::new("make_params_tuple")
-        .vis("pub")
-        .ret("ton_abi::ParamType")
-        .line("use std::iter::FromIterator;")
-        .line(format!("let tokens  = {}", tokens))
-        .line("TupleBuilder::from_iter(tokens).build()")
-        .clone();
-    imp.push_fn(fun);
-    imp
-}
 
 fn params_to_string(params: &[Param]) -> String {
     fn param_type_to_string(param: ParamType) -> String {
@@ -797,7 +803,7 @@ impl StructProperty {
                 }
             }
             StructProperty::Array { .. } => Some("array".to_string()),
-            StructProperty::Option { .. } => Some("optional".to_string()),
+            StructProperty::Option { ..} => None,
             StructProperty::Tuple { .. } => None,
             StructProperty::HashMap { .. } => None,
         };
