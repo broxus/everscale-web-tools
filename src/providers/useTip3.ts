@@ -214,7 +214,7 @@ const transferTip3Tokens = async (
       amount: args.amount,
       recipient: new Address(args.recipient),
       deployWalletValue: '100000000',
-      remainingGasTo: tip3Wallet.address,
+      remainingGasTo: new Address(owner),
       notify: args.notify != null ? args.notify : args.payload != '',
       payload: args.payload
     })
