@@ -11,8 +11,9 @@ enum LoadAbiType {
 }
 
 const DEFAULT_ABI_NAME = 'abi1';
+const COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
-const getAllAbis = () => Object.keys(localStorage);
+const getAllAbis = () => Object.keys(localStorage).sort(COLLATOR.compare);
 
 const props = defineProps<{
   address?: string;
