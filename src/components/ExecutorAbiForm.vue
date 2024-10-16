@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, watch } from 'vue';
+import { ref, shallowRef, watch, nextTick } from 'vue';
 
 import * as core from '@core';
 import { convertAddress, rewriteAbiUrl } from '../common';
@@ -32,6 +32,8 @@ const everscanAbi = ref<string>();
 const error = ref<string>();
 
 const storedAbi = shallowRef<string[]>(getAllAbis());
+const abiFilter = ref<string>('');
+const abiFilterField = ref<HTMLDivElement>();
 const selectedAbi = ref<string>();
 const abiSelectorVisible = ref(false);
 
@@ -180,6 +182,20 @@ async function onSubmit() {
     inProgress.value = false;
   }
 }
+
+function onToggleAbiSelector() {
+  const visible = !abiSelectorVisible.value;
+  abiSelectorVisible.value = visible;
+  abiFilter.value = '';
+  if (visible) {
+    nextTick(() => abiFilterField.value?.focus());
+  }
+}
+
+function onHideAbiSelector() {
+  abiFilter.value = '';
+  abiSelectorVisible.value = false;
+}
 </script>
 
 <template>
@@ -203,13 +219,7 @@ async function onSubmit() {
     </div>
     <div v-if="storedAbi.length > 0" :class="['dropdown', { 'is-active': abiSelectorVisible }]">
       <div class="dropdown-trigger">
-        <button
-          class="button"
-          aria-haspopup="true"
-          aria-controls="select-abi-dropdown"
-          @click="abiSelectorVisible = !abiSelectorVisible"
-          @blur="abiSelectorVisible = false"
-        >
+        <button class="button" aria-haspopup="true" aria-controls="select-abi-dropdown" @click="onToggleAbiSelector">
           <span>{{ selectedAbi == null ? 'Select ABI...' : selectedAbi }}</span>
           <span class="icon is-small">
             <i :class="['fas', abiSelectorVisible ? 'fa-angle-up' : 'fa-angle-down']" aria-hidden="true" />
@@ -218,12 +228,12 @@ async function onSubmit() {
       </div>
       <div class="dropdown-menu" id="select-abi-dropdown" role="menu">
         <div class="dropdown-content">
-          <a
-            v-for="(name, i) in storedAbi"
-            :key="i"
-            class="dropdown-item is-flex is-align-items-center pr-4"
-            @mousedown="onSelectAbi(name)"
-          >
+          <input type="text" class="dropdown-item is-flex is-align-items-center input is-small pr-4" spellcheck="false"
+            v-model="abiFilter" ref="abiFilterField" @blur="onHideAbiSelector">
+
+          <a v-for="(name, i) in storedAbi" :key="i"
+            :class="['dropdown-item', 'is-align-items-center', 'pr-4', name.toLowerCase().includes(abiFilter.toLowerCase()) ? 'is-flex' : 'is-hidden']"
+            @mousedown="onSelectAbi(name)">
             <span class="mr-5">{{ name }}</span>
             <button class="delete is-small ml-auto" @mousedown="onDeleteAbi(name)"></button>
           </a>
@@ -244,14 +254,8 @@ async function onSubmit() {
         <section class="modal-card-body">
           <div class="field">
             <label for="abi-name" class="label">ABI name:</label>
-            <input
-              class="input"
-              name="abi-name"
-              type="text"
-              spellcheck="false"
-              v-model="abiNameInput"
-              :disabled="inProgress"
-            />
+            <input class="input" name="abi-name" type="text" spellcheck="false" v-model="abiNameInput"
+              :disabled="inProgress" />
           </div>
 
           <div v-if="modalType === LoadAbiType.FROM_FILE" class="file">
@@ -272,15 +276,8 @@ async function onSubmit() {
           <div v-else-if="modalType === LoadAbiType.FROM_TEXT" class="field">
             <label for="abi-text" class="label">JSON ABI:</label>
             <div class="control">
-              <textarea
-                :class="['textarea', { 'is-danger': error != null }]"
-                name="abi-text"
-                spellcheck="true"
-                rows="5"
-                :disabled="inProgress"
-                :value="fieldsInput.text || ''"
-                @input="onChangeText"
-              />
+              <textarea :class="['textarea', { 'is-danger': error != null }]" name="abi-text" spellcheck="true" rows="5"
+                :disabled="inProgress" :value="fieldsInput.text || ''" @input="onChangeText" />
             </div>
             <p v-if="error != null" class="help is-danger">{{ error }}</p>
           </div>
@@ -288,15 +285,8 @@ async function onSubmit() {
           <div v-else-if="modalType === LoadAbiType.FROM_LINK" class="field">
             <label for="abi-link" class="label">Link to JSON ABI:</label>
             <div class="control">
-              <input
-                type="text"
-                class="input"
-                name="abi-link"
-                spellcheck="false"
-                :disabled="inProgress"
-                :value="fieldsInput.link || ''"
-                @input="onChangeLink"
-              />
+              <input type="text" class="input" name="abi-link" spellcheck="false" :disabled="inProgress"
+                :value="fieldsInput.link || ''" @input="onChangeLink" />
             </div>
             <p v-if="error != null" class="help is-danger">{{ error }}</p>
           </div>
