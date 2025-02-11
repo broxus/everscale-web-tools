@@ -49,35 +49,43 @@ export const rewriteAbiUrl = (address: URL) => {
   return address;
 };
 
-export const transactionExplorerLink = (network: string, hash: string) => {
+export const transactionExplorerLink = (network: number, hash: string) => {
   switch (network) {
-    case 'mainnet':
+    case 42:
       return `https://everscan.io/transactions/${hash}`;
-    case 'testnet':
+    case -42:
       return `https://testnet.everscan.io/transactions/${hash}`;
-    case 'fld':
-      return `https://fld.ever.live/messages/messageDetails?id=${hash}`;
-    case 'rfld':
-      return `https://fld.ever.live/messages/messageDetails?id=${hash}`;
-    case 'localnet':
+    case 1:
+      return `https://venomscan.com/transactions/${hash}`;
+    case 2000:
+      return `https://testnet.tychoprotocol.com/transactions/${hash}`;
+    // case 'fld':
+    //   return `https://fld.ever.live/messages/messageDetails?id=${hash}`;
+    // case 'rfld':
+    //   return `https://fld.ever.live/messages/messageDetails?id=${hash}`;
+    case 0:
       return `https://127.0.0.1/messages/messageDetails?id=${hash}`;
     default:
       return `https://everscan.io/transactions/${hash}`;
   }
 };
 
-export const accountExplorerLink = (network: string, address: Address | string) => {
+export const accountExplorerLink = (network: number, address: Address | string) => {
   const addr = address.toString();
   switch (network) {
-    case 'mainnet':
+    case 42:
       return `https://everscan.io/accounts/${addr}`;
-    case 'testnet':
+    case -42:
       return `https://testnet.everscan.io/accounts/${addr}`;
-    case 'fld':
-      return `https://fld.ever.live/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
-    case 'rfld':
-      return `https://rfld.ever.live/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
-    case 'localnet':
+    case 1:
+      return `https://venomscan.com/accounts/${addr}`;
+    case 2000:
+      return `https://testnet.tychoprotocol.com/accounts/${addr}`;
+    // case 'fld':
+    //   return `https://fld.ever.live/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
+    // case 'rfld':
+    //   return `https://rfld.ever.live/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
+    case 0:
       return `https://127.0.0.1/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
     default:
       return `https://everscan.io/accounts/${addr}`;

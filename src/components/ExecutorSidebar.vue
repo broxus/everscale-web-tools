@@ -2,11 +2,11 @@
 import { computed, ref, shallowRef, watch } from 'vue';
 import { Address, ContractState, Transaction, mergeTransactions } from 'everscale-inpage-provider';
 
-import { useEver } from '../providers/useEver';
 import { CURRENCY, convertAddress, fromNano } from '../common';
 
 import AddressSearchForm from './AddressSearchForm.vue';
 import ExecutorTransaction from './ExecutorTransaction.vue';
+import { useTvmConnect } from '../providers/useTvmConnect';
 
 const props = defineProps<{
   address?: string;
@@ -27,20 +27,22 @@ const methods = shallowRef<string[]>();
 const displayedAddress = computed(() => convertAddress(props.address));
 const displayedBalance = computed(() => `${fromNano(state.value?.balance)} ${CURRENCY}`);
 
-const { ever } = useEver();
+const { tvmConnect, tvmConnectState } = useTvmConnect()
 
 watch(
-  () => props.address,
-  async (address, _, onCleanup) => {
-    if (address == null) {
+  [() => props.address, () => tvmConnectState.value.isReady],
+  async ([address, isReady], _, onCleanup) => {
+    const provider = tvmConnect.getProvider();
+
+    if (address == null || !provider || !isReady) {
       return;
     }
 
     const localState = { addressChanged: false };
 
     const [statesSubscription, transactionsSubscription] = await Promise.all([
-      ever.subscribe('contractStateChanged', { address: new Address(address) }),
-      ever.subscribe('transactionsFound', { address: new Address(address) })
+      provider.subscribe('contractStateChanged', { address: new Address(address) }),
+      provider.subscribe('transactionsFound', { address: new Address(address) })
     ]);
     onCleanup(async () => {
       localState.addressChanged = true;
@@ -49,7 +51,7 @@ watch(
       await Promise.allSettled([statesSubscription.unsubscribe(), transactionsSubscription.unsubscribe()]);
     });
 
-    const { state: currentState } = await ever.getFullContractState({ address: new Address(address) });
+    const { state: currentState } = await provider.getFullContractState({ address: new Address(address) });
     if (localState.addressChanged) {
       return;
     }
@@ -62,7 +64,7 @@ watch(
     });
 
     if (currentState?.lastTransactionId != null) {
-      const { transactions: oldTransactions } = await ever.getTransactions({
+      const { transactions: oldTransactions } = await provider.getTransactions({
         address: new Address(address),
         continuation: {
           lt: currentState.lastTransactionId.lt,
@@ -110,7 +112,8 @@ watch(
 async function preloadTransactions() {
   const currentTransactions = transactions.value;
   const address = props.address;
-  if (address == null || currentTransactions == null || currentTransactions.length == 0) {
+  const provider = tvmConnect.getProvider()
+  if (address == null || currentTransactions == null || currentTransactions.length == 0 || !provider) {
     return;
   }
   const continuation = currentTransactions[currentTransactions.length - 1].prevTransactionId;
@@ -119,7 +122,7 @@ async function preloadTransactions() {
   }
 
   preloadingTransactions.value = true;
-  const { transactions: oldTransactions, info } = await ever
+  const { transactions: oldTransactions, info } = await provider
     .getTransactions({
       address: new Address(address),
       continuation: {

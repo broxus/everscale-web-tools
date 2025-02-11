@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { reactive } from 'vue';
 import { convertError } from '../common';
+import { useTvmConnect } from '../providers/useTvmConnect';
 
-import { useEver } from '../providers/useEver';
-
-const { ever, selectedAccount } = useEver();
+const { tvmConnect, tvmConnectState } = useTvmConnect()
 
 const state = reactive({
   data: '',
@@ -14,7 +13,9 @@ const state = reactive({
 });
 
 const submit = async () => {
-  if (state.inProgress || selectedAccount.value == null) {
+  const provider = tvmConnect.getProvider()
+
+  if (state.inProgress || !tvmConnectState.value.account || !provider) {
     return;
   }
 
@@ -26,9 +27,9 @@ const submit = async () => {
       String.fromCharCode(('0x' + p1) as any)
     );
 
-    const output = await ever.signData({
+    const output = await provider.signData({
       data: window.btoa(encoded),
-      publicKey: selectedAccount.value.publicKey
+      publicKey: tvmConnectState.value.account.publicKey,
     });
 
     state.inProgress = false;
