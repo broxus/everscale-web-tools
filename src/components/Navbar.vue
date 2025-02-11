@@ -36,7 +36,7 @@ const balance = computed(() => fromNano(tvmConnectState.value.balance));
             <button
               v-if="!tvmConnectState.isReady"
               :class="['button is-primary', { 'is-loading': tvmConnectState.isLoading }]"
-              @click="tvmConnect.connect"
+              @click="() => tvmConnect.connect()"
             >
               <strong>Connect wallet</strong>
             </button>
