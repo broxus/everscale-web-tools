@@ -1,26 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { CURRENCY, convertAddress, fromNano } from '../common';
 
-import { useEver } from '../providers/useEver';
-
 import NavbarItem from './NavbarItem.vue';
+import { useTvmConnect } from '../providers/useTvmConnect';
 
-const { hasProvider, selectedAccount, selectedAccountBalance, connectToWallet, changeAccount, disconnect } = useEver();
+const { tvmConnect, tvmConnectState } = useTvmConnect();
 
-const isConnecting = ref(false);
-const doConnectToWallet = async () => {
-  isConnecting.value = true;
-  connectToWallet().finally(() => (isConnecting.value = false));
-};
-
-const doChangeAccount = async () => {
-  isConnecting.value = true;
-  changeAccount().finally(() => (isConnecting.value = false));
-};
-
-const address = computed(() => convertAddress(selectedAccount.value?.address.toString()));
-const balance = computed(() => fromNano(selectedAccountBalance.value));
+const address = computed(() => convertAddress(tvmConnectState.value.address));
+const balance = computed(() => fromNano(tvmConnectState.value.balance));
 </script>
 
 <template>
@@ -45,50 +33,38 @@ const balance = computed(() => fromNano(selectedAccountBalance.value));
       <div class="navbar-end">
         <div class="navbar-item">
           <div class="buttons">
-            <template v-if="hasProvider">
-              <button
-                v-if="selectedAccount == null"
-                :class="['button is-primary', { 'is-loading': isConnecting }]"
-                @click="doConnectToWallet"
-              >
-                <strong>Connect wallet</strong>
-              </button>
-              <template v-else>
-                <button
-                  v-if="selectedAccountBalance != null"
-                  class="button is-white"
-                  v-clipboard="selectedAccountBalance"
-                >
-                  {{ balance }} {{ CURRENCY }}
-                </button>
-                <div class="field has-addons">
-                  <div class="control">
-                    <button class="button is-light" v-clipboard="selectedAccount.address.toString()">
-                      {{ address }}
-                    </button>
-                  </div>
-                  <div class="control">
-                    <button :class="['button', { 'is-loading': isConnecting }]" @click="doChangeAccount">
-                      <span class="icon"><i class="fas fa-sync-alt" /></span>
-                    </button>
-                  </div>
-                  <div class="control">
-                    <button :class="['button', { 'is-loading': isConnecting }]" @click="disconnect">
-                      <span class="icon"><i class="fas fa-sign-out-alt" /></span>
-                    </button>
-                  </div>
-                </div>
-              </template>
-            </template>
+            <button
+              v-if="!tvmConnectState.isReady"
+              :class="['button is-primary', { 'is-loading': tvmConnectState.isLoading }]"
+              @click="() => tvmConnect.connect()"
+            >
+              <strong>Connect wallet</strong>
+            </button>
             <template v-else>
-              <a
-                class="button is-light"
-                target="_blank"
-                href="https://chrome.google.com/webstore/detail/ever-wallet/cgeeodpfagjceefieflmdfphplkenlfk"
+              <button
+                v-if="tvmConnectState.balance != null"
+                class="button is-white"
+                v-clipboard="tvmConnectState.balance"
               >
-                <strong>Install wallet</strong>
-                <span class="icon"><i class="fa fa-external-link-alt" /></span>
-              </a>
+                {{ balance }} {{ CURRENCY }}
+              </button>
+              <div class="field has-addons">
+                <div class="control">
+                  <button class="button is-light" v-clipboard="tvmConnectState.address">
+                    {{ address }}
+                  </button>
+                </div>
+                <div class="control">
+                  <button :class="['button', { 'is-loading': tvmConnectState.isLoading }]" @click="tvmConnect.changeAccount">
+                    <span class="icon"><i class="fas fa-sync-alt" /></span>
+                  </button>
+                </div>
+                <div class="control">
+                  <button :class="['button', { 'is-loading': tvmConnectState.isLoading }]" @click="tvmConnect.disconnect">
+                    <span class="icon"><i class="fas fa-sign-out-alt" /></span>
+                  </button>
+                </div>
+              </div>
             </template>
           </div>
         </div>

@@ -2,7 +2,6 @@
 import { computed, watch, shallowRef } from 'vue';
 import { Message, Transaction, serializeTransaction } from 'everscale-inpage-provider';
 
-import { useEver } from '../providers/useEver';
 import {
   CURRENCY,
   deepCopy,
@@ -13,6 +12,7 @@ import {
   fromNano,
   transactionExplorerLink
 } from '../common';
+import { useTvmConnect } from '../providers/useTvmConnect';
 
 const props = defineProps<{
   transaction: Transaction;
@@ -20,7 +20,7 @@ const props = defineProps<{
   methods?: string[];
 }>();
 
-const { ever, selectedNetwork } = useEver();
+const { tvmConnectState, tvmConnect } = useTvmConnect()
 
 const parsed = shallowRef<{ functionData?: string; eventsData?: string[] }>({});
 
@@ -35,7 +35,7 @@ function displayInMessageInfo(msg: Message): {
         ? {
             address: convertAddress(msg.src.toString()),
             executorLink: `/executor/${msg.src.toString()}`,
-            explorerLink: accountExplorerLink(selectedNetwork.value, msg.src)
+            explorerLink: accountExplorerLink(tvmConnectState.value.networkId, msg.src)
           }
         : undefined,
     value: msg.src != null ? fromNano(msg.value) : '0',
@@ -55,7 +55,7 @@ function displayOutMessageInfo(msg: Message): {
         ? {
             address: convertAddress(msg.dst.toString()),
             executorLink: `/executor/${msg.dst.toString()}`,
-            explorerLink: accountExplorerLink(selectedNetwork.value, msg.dst)
+            explorerLink: accountExplorerLink(tvmConnectState.value.networkId, msg.dst)
           }
         : undefined,
     value: msg.dst != null ? fromNano(msg.value) : '0',
@@ -67,16 +67,18 @@ function displayOutMessageInfo(msg: Message): {
 const displayedInfo = computed(() => ({
   createdAt: convertDate(props.transaction.createdAt),
   totalFees: fromNano(props.transaction.totalFees),
-  explorerLink: transactionExplorerLink(selectedNetwork.value, props.transaction.id.hash),
+  explorerLink: transactionExplorerLink(tvmConnectState.value.networkId, props.transaction.id.hash),
   hash: convertHash(props.transaction.id.hash),
   inMsg: displayInMessageInfo(props.transaction.inMessage),
   outMsgs: props.transaction.outMessages.map(displayOutMessageInfo)
 }));
 
 watch(
-  [() => props.transaction, () => props.abi, () => props.methods],
-  async ([transaction, abi, methods], _, onCleanup) => {
-    if (abi == null || methods == null) {
+  [() => props.transaction, () => props.abi, () => props.methods, () => tvmConnectState.value.isReady],
+  async ([transaction, abi, methods, isReady], _, onCleanup) => {
+    const provider = tvmConnect.getProvider()
+
+    if (abi == null || methods == null || !isReady || !provider) {
       return;
     }
 
@@ -86,15 +88,15 @@ watch(
       parsed.value = {};
     });
 
-    const [fn, { events }] = await ever.ensureInitialized().then(() => {
+    const [fn, { events }] = await provider.ensureInitialized().then(() => {
       const tx = deepCopy(serializeTransaction(transaction));
       return Promise.all([
-        ever.rawApi.decodeTransaction({
+        provider.rawApi.decodeTransaction({
           abi,
           transaction: tx,
           method: methods
         }),
-        ever.rawApi.decodeTransactionEvents({
+        provider.rawApi.decodeTransactionEvents({
           abi,
           transaction: tx
         })

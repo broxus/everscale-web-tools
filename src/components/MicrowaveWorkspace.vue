@@ -7,12 +7,12 @@ import AddressSearchForm from './AddressSearchForm.vue';
 import ConnectWalletStub from './ConnectWalletStub.vue';
 
 import { convertError } from '../common';
-import { useEver } from '../providers/useEver';
 import { UnfreezeMode, useMicrowave } from '../providers/useMicrowave';
+import { useTvmConnect } from '../providers/useTvmConnect';
 
 type ExtendedContractState = ContractState & { frozen?: core.FrozenState };
 
-const { ever } = useEver();
+const { tvmConnect } = useTvmConnect()
 const { microwaveReady, initializeMicrowave, deployMicrowave, unfreezeContract } = useMicrowave();
 
 const inProgress = ref(false);
@@ -36,7 +36,9 @@ const formState = ref<{
 watch(
   [accountAddress],
   async ([accountAddress], _old, onCleanup) => {
-    if (accountAddress == null) {
+    const provider = tvmConnect.getProvider();
+
+    if (accountAddress == null || !provider) {
       return;
     }
 
@@ -50,7 +52,7 @@ watch(
       contractSubscription?.unsubscribe().catch(console.error);
     });
 
-    const { state: receivedState } = await ever.getFullContractState({
+    const { state: receivedState } = await provider.getFullContractState({
       address: new Address(accountAddress)
     });
     if (state.addressChanged) {
@@ -69,7 +71,7 @@ watch(
     }
     contractState.value = receivedState;
 
-    contractSubscription = await ever.subscribe('contractStateChanged', { address: new Address(accountAddress) });
+    contractSubscription = await provider.subscribe('contractStateChanged', { address: new Address(accountAddress) });
     if (state.addressChanged) {
       return;
     }
