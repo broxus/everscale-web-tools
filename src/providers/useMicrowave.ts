@@ -2,8 +2,7 @@ import { ref, watch } from 'vue';
 import { Address, Subscription, LT_COLLATOR, TransactionId, Transaction } from 'everscale-inpage-provider';
 import BigNumber from 'bignumber.js';
 import * as core from '@core';
-
-import { useEver } from './useEver';
+import { useTvmConnect } from './useTvmConnect';
 
 const FACTORY_BOC =
   'te6ccgEBDQEA4gACATQDAQEBwAIAQ9AAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACACKP8AIMEB9KQgWJL0oOBfAoog7VPZBgQBCvSkIPShBQAAAgEgDAcCAv0KCAIBIAsJALcAe1AAfhhAdMAAcAAjjsw0z/TH9MfghAnss0dErryqfgAcPhk1fpA1NHIgBDPCwUSznD6AnbPC2vMyYEAoPsAXwPtUIIQJ7LNHSBZAVUB4IECABLXGAEwIVUB2YAIBIAsLAAU8jaAANN8wIPhh0NMAAcAAkvIw4dYB0wAwwADyafI3';
@@ -54,29 +53,31 @@ const MICROWAVE_ABI = {
 const initialized = ref(false);
 const microwaveReady = ref<boolean>();
 
-const { ever, selectedAccount, selectedNetwork } = useEver();
+const { tvmConnect, tvmConnectState } = useTvmConnect()
 
 type Addresses = {
   factory: string;
   microwave: string;
 };
 
-const addressesPromise: Promise<Addresses | undefined> = ever.hasProvider().then(async hasProvider => {
-  if (!hasProvider) {
-    return undefined;
+const getAddresses = async (): Promise<Addresses | undefined> => {
+  const provider = tvmConnect.getProvider()
+  if (!provider) {
+    return undefined
   }
 
-  await ever.ensureInitialized();
+  await provider.ensureInitialized()
+
   const [{ hash: factoryHash }, { hash: microwaveHash }] = await Promise.all([
-    ever.rawApi.getBocHash({ boc: FACTORY_BOC }),
-    ever.rawApi.getBocHash({ boc: MICROWAVE_BOC })
+    provider.rawApi.getBocHash({ boc: FACTORY_BOC }),
+    provider.rawApi.getBocHash({ boc: MICROWAVE_BOC })
   ]);
 
   return {
     factory: `0:${factoryHash}`,
     microwave: `0:${microwaveHash}`
   };
-});
+}
 
 const initializeMicrowave = () => {
   initialized.value = true;
@@ -104,8 +105,9 @@ const unfreezeContract = (args: UnfreezeContractParams, setStatus: (status?: str
   } = { cancelled: false };
 
   const promise = (async () => {
-    const addresses = await addressesPromise;
-    if (addresses == null) {
+    const addresses = await getAddresses();
+    const provider = tvmConnect.getProvider();
+    if (addresses == null || !provider) {
       return;
     }
 
@@ -113,7 +115,7 @@ const unfreezeContract = (args: UnfreezeContractParams, setStatus: (status?: str
     const microwaveAddress = new Address(addresses.microwave);
 
     setStatus('computing due payment');
-    const { state: accountState } = await ever.getFullContractState({ address: accountAddress });
+    const { state: accountState } = await provider.getFullContractState({ address: accountAddress });
     if (accountState == null) {
       throw new Error('Account is uninit');
     }
@@ -145,7 +147,7 @@ const unfreezeContract = (args: UnfreezeContractParams, setStatus: (status?: str
     let freezeTransactionLt: string | undefined;
     let continuation: TransactionId | undefined = undefined;
     outer: while (true) {
-      const batch = await ever.getTransactions({
+      const batch = await provider.getTransactions({
         address: accountAddress,
         continuation
       });
@@ -206,8 +208,8 @@ const unfreezeContract = (args: UnfreezeContractParams, setStatus: (status?: str
 
     setStatus('creating subscriptions');
     const [microwaveSubscription, targetSubscription] = await Promise.all([
-      ever.subscribe('transactionsFound', { address: microwaveAddress }),
-      ever.subscribe('transactionsFound', { address: accountAddress })
+      provider.subscribe('transactionsFound', { address: microwaveAddress }),
+      provider.subscribe('transactionsFound', { address: accountAddress })
     ]);
     state.microwaveSubscription = microwaveSubscription;
     state.targetSubscription = targetSubscription;
@@ -246,12 +248,12 @@ const unfreezeContract = (args: UnfreezeContractParams, setStatus: (status?: str
 
     setStatus('sending unfreeze message');
 
-    const from = selectedAccount.value?.address;
+    const from = tvmConnectState.value.account.address;
     if (from == null) {
       throw new Error('Account not selected');
     }
 
-    const walletTx = await new ever.Contract(MICROWAVE_ABI, microwaveAddress).methods
+    const walletTx = await new provider.Contract(MICROWAVE_ABI, microwaveAddress).methods
       .deploy({
         dest: accountAddress,
         state_init: stateInit
@@ -330,9 +332,10 @@ const deployMicrowave = (setStatus: (status?: string) => void) => {
   };
 
   const promise = (async () => {
-    const addresses = await addressesPromise;
-    const selectedAccountAddress = selectedAccount.value?.address;
-    if (addresses == null || selectedAccountAddress == null || state.cancelled) {
+    const addresses = await getAddresses();
+    const provider = tvmConnect.getProvider()
+    const selectedAccountAddress = tvmConnectState.value.account.address;
+    if (addresses == null || selectedAccountAddress == null || state.cancelled || !provider) {
       return;
     }
 
@@ -341,10 +344,10 @@ const deployMicrowave = (setStatus: (status?: string) => void) => {
 
     setStatus('creating subscription');
     const [factorySubscription, microwaveSubscription] = await Promise.all([
-      ever.subscribe('contractStateChanged', {
+      provider.subscribe('contractStateChanged', {
         address: factoryAddress
       }),
-      ever.subscribe('contractStateChanged', {
+      provider.subscribe('contractStateChanged', {
         address: microwaveAddress
       })
     ]);
@@ -380,8 +383,8 @@ const deployMicrowave = (setStatus: (status?: string) => void) => {
 
     setStatus('fetching states');
     const [{ state: factoryState }, { state: microwaveState }] = await Promise.all([
-      ever.getFullContractState({ address: factoryAddress }),
-      ever.getFullContractState({ address: microwaveAddress })
+      provider.getFullContractState({ address: factoryAddress }),
+      provider.getFullContractState({ address: microwaveAddress })
     ]);
     if (state.cancelled || microwaveState?.isDeployed === true) {
       return;
@@ -391,7 +394,7 @@ const deployMicrowave = (setStatus: (status?: string) => void) => {
       resolveBalance();
     } else {
       setStatus('sending initial balance');
-      await ever.sendMessage({
+      await provider.sendMessage({
         sender: selectedAccountAddress,
         recipient: factoryAddress,
         bounce: false,
@@ -408,8 +411,9 @@ const deployMicrowave = (setStatus: (status?: string) => void) => {
       return;
     }
 
-    setStatus('deploying factory');
-    await new ever.Contract(FACTORY_ABI, factoryAddress).methods
+    setStatus('deploying factory')
+
+    await new provider.Contract(FACTORY_ABI, factoryAddress).methods
       .constructor({
         dest: new Address(addresses.microwave),
         state_init: MICROWAVE_BOC
@@ -440,7 +444,7 @@ const deployMicrowave = (setStatus: (status?: string) => void) => {
 };
 
 watch(
-  [initialized, selectedNetwork],
+  [initialized, tvmConnectState.value.networkId],
   async ([initialized], _old, onCleanup) => {
     if (!initialized) {
       return;
@@ -459,14 +463,15 @@ watch(
       }
     });
 
-    const addresses = await addressesPromise;
-    if (addresses == null || state.networkChanged) {
+    const addresses = await getAddresses();
+    const provider = tvmConnect.getProvider();
+    if (addresses == null || state.networkChanged || !provider) {
       return;
     }
 
     const microwaveAddress = new Address(addresses.microwave);
 
-    const { state: microwaveContract } = await ever.getFullContractState({
+    const { state: microwaveContract } = await provider.getFullContractState({
       address: microwaveAddress
     });
     if (state.networkChanged) {
@@ -480,7 +485,7 @@ watch(
 
     microwaveReady.value = false;
 
-    state.subscription = ever.subscribe('contractStateChanged', { address: microwaveAddress });
+    state.subscription = provider.subscribe('contractStateChanged', { address: microwaveAddress });
     const subscription = await state.subscription;
     if (state.networkChanged) {
       return;

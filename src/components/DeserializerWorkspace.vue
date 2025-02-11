@@ -2,8 +2,8 @@
 import { ref, shallowRef, watch, watchEffect } from 'vue';
 import * as core from '@core';
 
-import { useEver } from '../providers/useEver';
 import { convertError } from '../common';
+import { useTvmConnect } from '../providers/useTvmConnect';
 
 enum Tabs {
   ABI = 'ABI',
@@ -40,7 +40,7 @@ const bocState = shallowRef<{
   error?: string;
 }>({});
 
-const { ever } = useEver();
+const { tvmConnect, tvmConnectState } = useTvmConnect()
 
 watchEffect(() => {
   try {
@@ -91,6 +91,11 @@ watch([bocInput, abiState, partial, selectedStructure], async ([bocInput, { abi 
     state.abiChanged = true;
   });
 
+  const provider = tvmConnect.getProvider();
+  if (!provider) {
+    return;
+  }
+
   let result;
   if (abi.kind === 'function') {
     const contractAbi = {
@@ -108,8 +113,8 @@ watch([bocInput, abiState, partial, selectedStructure], async ([bocInput, { abi 
     };
 
     try {
-      const decoded = await ever.ensureInitialized().then(async () =>
-        ever.rawApi.decodeInput({
+      const decoded = await provider.ensureInitialized().then(async () =>
+        provider.rawApi.decodeInput({
           abi: JSON.stringify(contractAbi),
           body: bocInput,
           method: abi.name,
@@ -134,7 +139,7 @@ watch([bocInput, abiState, partial, selectedStructure], async ([bocInput, { abi 
     const structure = abi.kind === 'empty' ? [] : abi.structure;
 
     try {
-      const { data } = await ever.unpackFromCell({
+      const { data } = await provider.unpackFromCell({
         boc: bocInput,
         structure,
         allowPartial: partial

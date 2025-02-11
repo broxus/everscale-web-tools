@@ -3,7 +3,6 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { TokensObject } from 'everscale-inpage-provider';
 
-import { useEver } from '../providers/useEver';
 import { CURRENCY, makeStructure, convertError, deepCopy, toNano, checkAddress, rewriteAbiUrl } from '../common';
 
 import ExecutorSidebar from './ExecutorSidebar.vue';
@@ -11,6 +10,7 @@ import ExecutorAbiForm from './ExecutorAbiForm.vue';
 import EntityBuilderItem from './EntityBuilderItem.vue';
 import ConnectWalletStub from './ConnectWalletStub.vue';
 import TextArea from './TextArea.vue';
+import { useTvmConnect } from '../providers/useTvmConnect';
 
 enum Action {
   RUN_LOCAL,
@@ -42,7 +42,7 @@ type FieldsState = {
   error?: string;
 };
 
-const { ever, selectedAccount } = useEver();
+const { tvmConnect, tvmConnectState } = useTvmConnect()
 const { push, currentRoute } = useRouter();
 
 const address = ref<string>();
@@ -145,12 +145,14 @@ watch(
 );
 
 async function execute(f: FunctionState, action: Action) {
-  if (f.inProgress || abi.value == null || address.value == null) {
+  const provider = tvmConnect.getProvider()
+
+  if (f.inProgress || abi.value == null || address.value == null || !provider) {
     return;
   }
   f.inProgress = true;
   try {
-    await ever.ensureInitialized();
+    await provider.ensureInitialized();
 
     const functionCall = {
       abi: abi.value,
@@ -161,7 +163,7 @@ async function execute(f: FunctionState, action: Action) {
     let res: any;
     switch (action) {
       case Action.RUN_LOCAL: {
-        res = await ever.rawApi.runLocal({
+        res = await provider.rawApi.runLocal({
           address: address.value,
           functionCall,
           responsible: f.responsible
@@ -169,16 +171,16 @@ async function execute(f: FunctionState, action: Action) {
         break;
       }
       case Action.SEND_EXTERNAL: {
-        res = await (f.withSignature ? ever.rawApi.sendExternalMessage : ever.rawApi.sendUnsignedExternalMessage)({
-          publicKey: selectedAccount.value.publicKey,
+        res = await (f.withSignature ? provider.rawApi.sendExternalMessage : provider.rawApi.sendUnsignedExternalMessage)({
+          publicKey: tvmConnectState.value.account.publicKey,
           recipient: address.value,
           payload: functionCall
         });
         break;
       }
       case Action.SEND_INTERNAL: {
-        res = await ever.rawApi.sendMessage({
-          sender: selectedAccount.value.address.toString(),
+        res = await provider.rawApi.sendMessage({
+          sender: tvmConnectState.value.address,
           recipient: address.value,
           amount: toNano(f.attached),
           bounce: f.bounce,
@@ -199,14 +201,15 @@ async function execute(f: FunctionState, action: Action) {
 
 async function updateFields() {
   const f = fields.value;
-  if (f == null || f.inProgress || abi.value == null || address.value == null) {
+  const provider = tvmConnect.getProvider()
+  if (f == null || f.inProgress || abi.value == null || address.value == null || !provider) {
     return;
   }
 
   f.inProgress = true;
   try {
-    await ever.ensureInitialized();
-    const { fields } = await ever.rawApi.getContractFields({
+    await provider.ensureInitialized();
+    const { fields } = await provider.rawApi.getContractFields({
       address: address.value,
       abi: abi.value,
       allowPartial: f.allowPartial
