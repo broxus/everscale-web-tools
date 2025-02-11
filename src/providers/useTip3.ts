@@ -1,9 +1,9 @@
 import { ref, watch } from 'vue';
-import { Address, Subscription, Transaction } from 'everscale-inpage-provider';
+import { Address, ProviderRpcClient, Subscription, Transaction } from 'everscale-inpage-provider';
 import BigNumber from 'bignumber.js';
 
-import { useEver } from './useEver';
 import { fromNano } from '../common';
+import { useTvmConnect } from './useTvmConnect';
 
 const TIP3_ROOT_ABI = {
   'ABI version': 2,
@@ -134,12 +134,12 @@ export type Tip3TransferParams = {
   attachedAmount: string;
 };
 
-const { ever } = useEver();
+const { tvmConnect } = useTvmConnect()
 
-const getTip3RootInfo = async (address: string): Promise<Tip3RootInfo> => {
-  const tip3Root = new ever.Contract(TIP3_ROOT_ABI, new Address(address));
+const getTip3RootInfo = async (address: string, provider: ProviderRpcClient): Promise<Tip3RootInfo> => {
+  const tip3Root = new provider.Contract(TIP3_ROOT_ABI, new Address(address));
 
-  const { state } = await ever.getFullContractState({
+  const { state } = await provider.getFullContractState({
     address: tip3Root.address
   });
 
@@ -176,17 +176,17 @@ const getTip3RootInfo = async (address: string): Promise<Tip3RootInfo> => {
   };
 };
 
-const getTip3WalletAddress = async (root: string, owner: string): Promise<string> => {
-  const tip3Root = new ever.Contract(TIP3_ROOT_ABI, new Address(root));
+const getTip3WalletAddress = async (root: string, owner: string, provider: ProviderRpcClient): Promise<string> => {
+  const tip3Root = new provider.Contract(TIP3_ROOT_ABI, new Address(root));
   const { value0: walletAddress } = await tip3Root.methods
     .walletOf({ answerId: 0, walletOwner: new Address(owner) })
     .call({ responsible: true });
   return walletAddress.toString();
 };
 
-const getTip3WalletBalance = async (address: string): Promise<string | undefined> => {
-  const tip3Wallet = new ever.Contract(TIP3_WALLET_ABI, new Address(address));
-  const { state } = await ever.getFullContractState({ address: tip3Wallet.address });
+const getTip3WalletBalance = async (address: string, provider: ProviderRpcClient): Promise<string | undefined> => {
+  const tip3Wallet = new provider.Contract(TIP3_WALLET_ABI, new Address(address));
+  const { state } = await provider.getFullContractState({ address: tip3Wallet.address });
 
   if (state == null || !state.isDeployed) {
     return undefined;
@@ -203,9 +203,10 @@ const getTip3WalletBalance = async (address: string): Promise<string | undefined
 const transferTip3Tokens = async (
   owner: string,
   walletAddress: string,
-  args: Tip3TransferParams
+  args: Tip3TransferParams,
+  provider: ProviderRpcClient,
 ): Promise<Transaction> => {
-  const tip3Wallet = new ever.Contract(TIP3_WALLET_ABI, new Address(walletAddress));
+  const tip3Wallet = new provider.Contract(TIP3_WALLET_ABI, new Address(walletAddress));
 
   const attachedAmount = new BigNumber(args.attachedAmount || '0').shiftedBy(9).plus(100000000).toFixed();
 

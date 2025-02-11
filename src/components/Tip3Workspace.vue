@@ -8,11 +8,11 @@ import ConnectWalletStub from './ConnectWalletStub.vue';
 import AddressSearchForm from './AddressSearchForm.vue';
 
 import { CURRENCY, accountExplorerLink, checkAddress, convertAddress, convertError } from '../common';
-import { useEver } from '../providers/useEver';
 import { useTip3, Tip3RootInfo, Tip3TransferParams } from '../providers/useTip3';
+import { useTvmConnect } from '../providers/useTvmConnect';
 
 const { push, currentRoute } = useRouter();
-const { ever, selectedAccount, selectedNetwork } = useEver();
+const { tvmConnect, tvmConnectState } = useTvmConnect()
 const { getTip3RootInfo, getTip3WalletAddress, getTip3WalletBalance, transferTip3Tokens } = useTip3();
 
 type TokenWalletInfo = {
@@ -47,7 +47,7 @@ const displayedRootOwnerAddress = computed(() => {
   }
   return {
     address: convertAddress(owner),
-    explorerLink: accountExplorerLink(selectedNetwork.value, owner)
+    explorerLink: accountExplorerLink(tvmConnectState.value.networkId, owner)
   };
 });
 
@@ -58,7 +58,7 @@ const displayedTokenWalletAddress = computed(() => {
   }
   return {
     address: convertAddress(walletAddress),
-    explorerLink: accountExplorerLink(selectedNetwork.value, walletAddress)
+    explorerLink: accountExplorerLink(tvmConnectState.value.networkId, walletAddress)
   };
 });
 
@@ -80,11 +80,6 @@ const notifyRecipient = computed(() => {
   return currentFormData.notify != null ? currentFormData.notify : currentFormData.payload != '';
 });
 
-const subscriber = new ever.Subscriber();
-onUnmounted(() => {
-  subscriber.unsubscribe();
-});
-
 watch(
   () => currentRoute.value.params,
   (newParams, old) => {
@@ -99,9 +94,11 @@ watch(
 );
 
 watch(
-  rootAddress,
-  async (newRoot, _old, onCleanup) => {
-    if (newRoot == null || newRoot == '') {
+  [rootAddress, () => tvmConnectState.value.isReady],
+  async ([newRoot, isReady], _old, onCleanup) => {
+    const provider = tvmConnect.getProvider()
+
+    if (newRoot == null || newRoot == '' || !isReady || !provider) {
       rootContractInfo.value = undefined;
       tokenWalletInfo.value = undefined;
       rootContractError.value = undefined;
@@ -115,7 +112,7 @@ watch(
 
     inProgress.value = true;
     try {
-      const info = await getTip3RootInfo(newRoot);
+      const info = await getTip3RootInfo(newRoot, provider);
       if (!state.addressChanged) {
         rootContractInfo.value = info;
         rootContractError.value = undefined;
@@ -133,10 +130,13 @@ watch(
 );
 
 watch(
-  [rootAddress, () => selectedAccount.value?.address.toString()],
+  [rootAddress, () => tvmConnectState.value.address],
   async ([rootAddress, selectedAccount], _old, onCleanup) => {
+    const provider = tvmConnect.getProvider()
+
     tokenWalletInfo.value = undefined;
-    if (rootAddress == '' || selectedAccount == null) {
+
+    if (rootAddress == '' || selectedAccount == null || !provider) {
       return;
     }
 
@@ -153,7 +153,7 @@ watch(
 
     let addr: string;
     try {
-      addr = await getTip3WalletAddress(rootAddress, selectedAccount);
+      addr = await getTip3WalletAddress(rootAddress, selectedAccount, provider);
       if (state.addressChanged) {
         return;
       }
@@ -177,7 +177,7 @@ watch(
       let balance: string | undefined = undefined;
       if (contractState == null || contractState?.isDeployed === true) {
         try {
-          balance = await getTip3WalletBalance(address);
+          balance = await getTip3WalletBalance(address, provider);
           if (state.addressChanged) {
             return false;
           }
@@ -198,7 +198,7 @@ watch(
       return;
     }
 
-    const tokenWalletSubscription = await ever.subscribe('contractStateChanged', {
+    const tokenWalletSubscription = await provider.subscribe('contractStateChanged', {
       address: new Address(addr)
     });
     if (state.addressChanged) {
@@ -223,7 +223,8 @@ const openTip3Account = (address: string) => {
 const doTransferTip3Tokens = async () => {
   const info = rootContractInfo.value;
   const walletInfo = tokenWalletInfo.value;
-  if (transferInProgress.value || info == null || walletInfo == null) {
+  const provider = tvmConnect.getProvider()
+  if (transferInProgress.value || info == null || walletInfo == null || !provider) {
     return false;
   }
 
@@ -247,7 +248,7 @@ const doTransferTip3Tokens = async () => {
       payload: form.payload,
       notify: form.notify,
       attachedAmount: form.attachedAmount
-    });
+    }, provider);
     formOutput.value = JSON.stringify(output, undefined, 4);
     transferError.value = undefined;
   } catch (e) {

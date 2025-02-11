@@ -2,10 +2,10 @@
 import { ref, watch, watchEffect } from 'vue';
 import * as core from '@core';
 
-import { useEver } from '../providers/useEver';
 import { convertError, makeStructure, toPaddedHexString, Structure, EMPTY_CELL } from '../common';
 
 import EntityBuilderItem from './EntityBuilderItem.vue';
+import { useTvmConnect } from '../providers/useTvmConnect';
 
 const props = defineProps<{
   abi: core.AbiEntity;
@@ -18,7 +18,7 @@ const state = ref<{ output?: string; error?: string }>({
   error: undefined
 });
 
-const { ever } = useEver();
+const { tvmConnect } = useTvmConnect()
 
 watchEffect(() => {
   const abi = props.abi;
@@ -43,8 +43,9 @@ watch(
   stateData,
   async (_old, _new, onCleanup) => {
     const abi = props.abi;
+    const provider = tvmConnect.getProvider()
 
-    if (abi.kind === 'empty') {
+    if (abi.kind === 'empty' || !provider) {
       return;
     }
 
@@ -56,7 +57,7 @@ watch(
 
     const result = { output: undefined, error: undefined };
     try {
-      const { boc } = await ever.packIntoCell({ data, structure } as any);
+      const { boc } = await provider.packIntoCell({ data, structure } as any);
       result.output = boc;
     } catch (e: any) {
       result.error = convertError(e);
