@@ -4,7 +4,7 @@ import { TvmConnectState, TvmConnectUI, everWallet, sparxWallet, venomWallet } f
 import '@broxus/tvm-connect-ui/dist/styles.css';
 
 const tvmConnect = new TvmConnectUI({
-  providers: [sparxWallet, everWallet, venomWallet],
+  providers: [sparxWallet(), everWallet(), venomWallet()],
 });
 
 const tvmConnectState = shallowRef<TvmConnectState>(tvmConnect.getState());
