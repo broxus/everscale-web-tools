@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@broxus/tvm-connect-ui": "^1.0.0",
+    "@broxus/tvm-connect-ui": "^1.0.1",
     "@soerenmartius/vue3-clipboard": "^0.1.2",
     "bignumber.js": "^9.1.0",
     "everscale-inpage-provider": "^0.4.0",

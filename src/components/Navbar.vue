@@ -32,7 +32,7 @@ const balance = computed(() => fromNano(tvmConnectState.value.balance));
       </div>
       <div class="navbar-end">
         <div class="navbar-item">
-          <div class="buttons">
+          <div class="wallet">
             <button
               v-if="!tvmConnectState.isReady"
               :class="['button is-primary', { 'is-loading': tvmConnectState.isLoading }]"
@@ -41,6 +41,15 @@ const balance = computed(() => fromNano(tvmConnectState.value.balance));
               <strong>Connect wallet</strong>
             </button>
             <template v-else>
+              <div class="tag is-white is-medium">
+                Network ID: {{ tvmConnectState.networkId }}
+              </div>
+              <button
+                class="button is-white"
+                @click="() => tvmConnect.connect()"
+              >
+                {{ tvmConnectState.providerId }}
+              </button>
               <button
                 v-if="tvmConnectState.balance != null"
                 class="button is-white"
@@ -72,3 +81,10 @@ const balance = computed(() => fromNano(tvmConnectState.value.balance));
     </div>
   </nav>
 </template>
+
+<style scoped>
+  .wallet {
+    display: flex;
+    align-items: center;
+  }
+</style>

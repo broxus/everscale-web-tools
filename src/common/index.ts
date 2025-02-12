@@ -59,10 +59,8 @@ export const transactionExplorerLink = (network: number, hash: string) => {
       return `https://venomscan.com/transactions/${hash}`;
     case 2000:
       return `https://testnet.tychoprotocol.com/transactions/${hash}`;
-    // case 'fld':
-    //   return `https://fld.ever.live/messages/messageDetails?id=${hash}`;
-    // case 'rfld':
-    //   return `https://fld.ever.live/messages/messageDetails?id=${hash}`;
+    case 7:
+      return `https://hamsterscan.io/transactions/${hash}`;
     case 0:
       return `https://127.0.0.1/messages/messageDetails?id=${hash}`;
     default:
@@ -81,10 +79,8 @@ export const accountExplorerLink = (network: number, address: Address | string) 
       return `https://venomscan.com/accounts/${addr}`;
     case 2000:
       return `https://testnet.tychoprotocol.com/accounts/${addr}`;
-    // case 'fld':
-    //   return `https://fld.ever.live/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
-    // case 'rfld':
-    //   return `https://rfld.ever.live/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
+    case 7:
+      return `https://hamsterscan.io/accounts/${addr}`;
     case 0:
       return `https://127.0.0.1/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
     default:
