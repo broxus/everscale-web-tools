@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue';
-import { Address, Subscription, LT_COLLATOR, TransactionId, Transaction } from 'everscale-inpage-provider';
+import { Address, Subscription, LT_COLLATOR, TransactionId, Transaction, ProviderRpcClient } from 'everscale-inpage-provider';
 import BigNumber from 'bignumber.js';
 import * as core from '@core';
 import { useTvmConnect } from './useTvmConnect';
@@ -60,12 +60,7 @@ type Addresses = {
   microwave: string;
 };
 
-const getAddresses = async (): Promise<Addresses | undefined> => {
-  const provider = tvmConnect.getProvider()
-  if (!provider) {
-    return undefined
-  }
-
+const getAddresses = async (provider: ProviderRpcClient): Promise<Addresses | undefined> => {
   await provider.ensureInitialized()
 
   const [{ hash: factoryHash }, { hash: microwaveHash }] = await Promise.all([
@@ -105,9 +100,13 @@ const unfreezeContract = (args: UnfreezeContractParams, setStatus: (status?: str
   } = { cancelled: false };
 
   const promise = (async () => {
-    const addresses = await getAddresses();
     const provider = tvmConnect.getProvider();
-    if (addresses == null || !provider) {
+    if (!provider) {
+      return;
+    }
+
+    const addresses = await getAddresses(provider);
+    if (addresses == null) {
       return;
     }
 
@@ -332,8 +331,12 @@ const deployMicrowave = (setStatus: (status?: string) => void) => {
   };
 
   const promise = (async () => {
-    const addresses = await getAddresses();
-    const provider = tvmConnect.getProvider()
+    const provider = tvmConnect.getProvider();
+    if (!provider) {
+      return;
+    }
+
+    const addresses = await getAddresses(provider);
     const selectedAccountAddress = tvmConnectState.value.account.address;
     if (addresses == null || selectedAccountAddress == null || state.cancelled || !provider) {
       return;
@@ -444,9 +447,9 @@ const deployMicrowave = (setStatus: (status?: string) => void) => {
 };
 
 watch(
-  [initialized, tvmConnectState.value.networkId],
-  async ([initialized], _old, onCleanup) => {
-    if (!initialized) {
+  [initialized, () => tvmConnectState.value.isReady],
+  async ([initialized, isReady], _old, onCleanup) => {
+    if (!initialized || !isReady) {
       return;
     }
 
@@ -463,8 +466,11 @@ watch(
       }
     });
 
-    const addresses = await getAddresses();
     const provider = tvmConnect.getProvider();
+    if (!provider) {
+      return;
+    }
+    const addresses = await getAddresses(provider);
     if (addresses == null || state.networkChanged || !provider) {
       return;
     }
