@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import * as core from '@core';
+import { normalizeBase64 } from "../common"
 
 const input = ref('');
 const state = ref({ decoded: undefined, error: undefined });
@@ -9,7 +10,7 @@ const decode = (e: Event) => {
   const boc = (e.target as HTMLInputElement).value;
   try {
     state.value = {
-      decoded: core.visualize(boc),
+      decoded: core.visualize(normalizeBase64(boc)),
       error: undefined
     };
   } catch (e: any) {

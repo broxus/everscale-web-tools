@@ -2,7 +2,7 @@
 import { ref, shallowRef, watch, watchEffect } from 'vue';
 import * as core from '@core';
 
-import { convertError } from '../common';
+import { convertError, normalizeBase64 } from '../common';
 import { useTvmConnect } from '../providers/useTvmConnect';
 
 enum Tabs {
@@ -60,7 +60,7 @@ watchEffect(() => {
 watch([bocInput, abiState, partial, selectedStructure], async ([bocInput, { abi }, partial, selectedStructure], _, onCleanup) => {
   if (activeTab.value === Tabs.BlockStructures) {
     try {
-      let r = JSON.parse(core.deserialize(bocInput, selectedStructure));
+      let r = JSON.parse(core.deserialize(normalizeBase64(bocInput), selectedStructure));
       bocState.value = {
         decoded: JSON.stringify(r, (key, value) =>
           typeof value === 'bigint'

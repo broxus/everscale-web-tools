@@ -35,6 +35,10 @@ export const zeroPad = (num: number, places: number) => {
   return Array(+(zero > 0 && zero)).join('0') + num;
 };
 
+export const normalizeBase64 = (base64str: string) => {
+  return base64str.replace(/_/g, '/').replace(/-/g, '+');
+};
+
 const BLOB_PART = /\/blob\//;
 const EVERSCAN_CONTRACT_PATH = /^\/contracts\/([0-9a-fA-F]{64})\/?$/;
 export const rewriteAbiUrl = (address: URL) => {
