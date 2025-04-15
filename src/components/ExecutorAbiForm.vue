@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref, shallowRef, watch, nextTick } from 'vue';
+import { nextTick, ref, shallowRef, watch } from 'vue';
 
 import * as core from '@core';
+import { unzipSync } from 'fflate';
 import { convertAddress, rewriteAbiUrl } from '../common';
 
 enum LoadAbiType {
   FROM_FILE,
   FROM_TEXT,
-  FROM_LINK
+  FROM_LINK,
+  FROM_ZIP
 }
 
 const DEFAULT_ABI_NAME = 'abi1';
@@ -27,7 +29,7 @@ const emit = defineEmits<{
 const modalType = ref<LoadAbiType>();
 
 const abiNameInput = ref(DEFAULT_ABI_NAME);
-const fieldsInput = ref<{ file?: File; text?: string; link?: string }>({});
+const fieldsInput = ref<{ file?: File; text?: string; link?: string, zip?: { file?: File, link?: string } }>({});
 const everscanAbi = ref<string>();
 const error = ref<string>();
 
@@ -124,6 +126,18 @@ function onChangeFile(e: InputEvent) {
   };
 }
 
+function onChangeZipFile(e: InputEvent) {
+  const files = (e.target as HTMLInputElement).files;
+  if (files == null || files.length == 0) {
+    return;
+  }
+  fieldsInput.value = {
+    zip: {
+      file: files[0]
+    }
+  };
+}
+
 function onChangeText(e: InputEvent) {
   fieldsInput.value = {
     text: (e.target as HTMLInputElement).value
@@ -133,6 +147,14 @@ function onChangeText(e: InputEvent) {
 function onChangeLink(e: InputEvent) {
   fieldsInput.value = {
     link: (e.target as HTMLInputElement).value
+  };
+}
+
+function onChangeZipLink(e: InputEvent) {
+  fieldsInput.value = {
+    zip: {
+      link: (e.target as HTMLInputElement).value
+    }
   };
 }
 
@@ -157,6 +179,73 @@ async function loadAbiText(): Promise<string> {
   }
 }
 
+type ZipContent = { filename: string, files: { filename: string, text: string }[] };
+
+async function loadZipContent(): Promise<ZipContent> {
+  const { zip } = fieldsInput.value;
+
+  if (!zip?.file && !zip?.link) {
+    throw new Error('No zip link or file specified');
+  }
+
+  const buffer = await (zip.file?.arrayBuffer() ?? (await fetch(zip.link)).arrayBuffer());
+
+  const zipContents = unzipSync(new Uint8Array(buffer));
+
+  const filesData = await Promise.all(Object.entries(zipContents).map((x) =>
+    new Promise<{ filename: string, text: string }>((resolve, reject) => {
+      const [filename, uint8] = x;
+      const file = new File([uint8], filename);
+      const reader = new FileReader();
+
+      reader.onload = (event) => resolve({ filename: filename, text: (event?.target?.result as string ?? '') });
+      reader.onerror = (event) => reject(event?.target?.error);
+      reader.readAsText(file);
+    })));
+
+  const filename = (zip.file?.name ?? zip.link?.split('/').pop() ?? 'unnamed_archive');
+  const files = filesData.sort((x, y) => x.filename.localeCompare(y.filename, undefined, { numeric: true, sensitivity: 'case' }));
+
+  return {
+    filename,
+    files,
+  };
+}
+
+type ZipContentProcessResult = { storageKey: string, text: string }[];
+
+async function processZipContent(zipContent: ZipContent): Promise<ZipContentProcessResult> {
+  if (zipContent.files.length === 0) {
+    throw new Error(`Provided zip archive is empty`);
+  }
+
+  zipContent.files.forEach(abiFile => {
+    try {
+      core.checkAbi(abiFile.text);
+    } catch (err: any) {
+      throw new Error(`Processing error for '${abiFile.filename}' file. Internal ${err.toString()}`);
+    }
+  });
+
+  const shortZipFilename = zipContent.filename.split('.').shift();
+  const dateStr = new Date().toISOString().split('T')[0];
+  const parentFormattedFilename = `${shortZipFilename}_${dateStr}`;
+
+  // Store abis only after successful validation
+  const abis = zipContent.files.map(abiFile => {
+    const shortFilename = abiFile.filename.split('.').shift();
+    const storageKey = `[${parentFormattedFilename}] ${shortFilename}`
+    const text = abiFile.text;
+    localStorage.setItem(storageKey, text);
+    return {
+      storageKey,
+      text
+    };
+  });
+
+  return abis;
+};
+
 function onSubmitEverscanAbi() {
   if (everscanAbi.value != null) {
     emit('change', everscanAbi.value);
@@ -175,6 +264,25 @@ async function onSubmit() {
     storedAbi.value = getAllAbis();
     selectedAbi.value = abiNameInput.value;
     emit('change', text);
+    closeModal();
+  } catch (e: any) {
+    error.value = e.toString();
+  } finally {
+    inProgress.value = false;
+  }
+}
+
+async function onSubmitZip() {
+  if (inProgress.value) {
+    return;
+  }
+  inProgress.value = true;
+  try {
+    const zipContent = await loadZipContent();
+    const abis = await processZipContent(zipContent);
+    storedAbi.value = getAllAbis();
+    selectedAbi.value = abis[0]?.storageKey ?? undefined;
+    emit('change', abis[0]?.text);
     closeModal();
   } catch (e: any) {
     error.value = e.toString();
@@ -211,6 +319,9 @@ function onHideAbiSelector() {
     </div>
     <div class="control">
       <button class="button" :disabled="inProgress" @click="modalType = LoadAbiType.FROM_LINK">From link</button>
+    </div>
+    <div class="control">
+      <button class="button" :disabled="inProgress" @click="modalType = LoadAbiType.FROM_ZIP">From zip</button>
     </div>
     <div class="control">
       <button class="button" :disabled="inProgress || everscanAbi == null" @click="onSubmitEverscanAbi">
@@ -252,7 +363,7 @@ function onHideAbiSelector() {
         </header>
 
         <section class="modal-card-body">
-          <div class="field">
+          <div v-if="modalType !== LoadAbiType.FROM_ZIP" class="field">
             <label for="abi-name" class="label">ABI name:</label>
             <input class="input" name="abi-name" type="text" spellcheck="false" v-model="abiNameInput"
               :disabled="inProgress" />
@@ -290,10 +401,42 @@ function onHideAbiSelector() {
             </div>
             <p v-if="error != null" class="help is-danger">{{ error }}</p>
           </div>
+
+          <div v-else-if="modalType === LoadAbiType.FROM_ZIP">
+            <div class="field">
+              <label for="zip-link" class="label">Link to zip archive:</label>
+              <div class="control">
+                <input type="text" class="input" name="zip-link" spellcheck="false" :disabled="inProgress"
+                  :value="fieldsInput.zip?.link || ''" @input="onChangeZipLink" />
+              </div>
+            </div>
+
+            <div class="file">
+              <label class="file-label">
+                <input class="file-input" name="resume" type="file" @change="onChangeZipFile" />
+                <span class="file-cta">
+                  <span class="file-icon">
+                    <i class="fas fa-upload" />
+                  </span>
+                  <span class="file-label">{{
+                    fieldsInput.zip?.file?.name != null ? fieldsInput.zip?.file?.name : 'Choose a file…'
+                    }}</span>
+                </span>
+              </label>
+            </div>
+
+            <p v-if="error != null" class="help is-danger">{{ error }}</p>
+          </div>
+
         </section>
 
         <footer class="modal-card-foot">
-          <button :class="['button is-success', { 'is-loading': inProgress }]" :disabled="inProgress" @click="onSubmit">
+          <button v-if="modalType !== LoadAbiType.FROM_ZIP" :class="['button is-success', { 'is-loading': inProgress }]"
+            :disabled="inProgress" @click="onSubmit">
+            Submit
+          </button>
+          <button v-if="modalType === LoadAbiType.FROM_ZIP" :class="['button is-success', { 'is-loading': inProgress }]"
+            :disabled="inProgress" @click="onSubmitZip">
             Submit
           </button>
           <button class="button" @click="closeModal">Cancel</button>
