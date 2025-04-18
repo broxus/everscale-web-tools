@@ -1,6 +1,7 @@
 import { defineConfig, Plugin, ViteDevServer } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import checker from 'vite-plugin-checker';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import * as path from 'path';
 import fs from 'fs';
 
@@ -30,6 +31,7 @@ export default defineConfig({
     checker({
       typescript: true
     }),
+    nodePolyfills(),
     disasmVite()
   ],
   publicDir: path.resolve(__dirname, 'public'),
