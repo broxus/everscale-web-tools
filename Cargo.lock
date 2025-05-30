@@ -745,7 +745,7 @@ dependencies = [
 [[package]]
 name = "ton_abi"
 version = "2.1.0"
-source = "git+https://github.com/broxus/ton-labs-abi.git#b8834529ef8fa121d534fca6554c0e95d4019998"
+source = "git+https://github.com/broxus/ton-labs-abi.git#9386e9f5d6021f9ef072b2bb99bc10b70adb98ab"
 dependencies = [
  "anyhow",
  "base64",
@@ -767,7 +767,7 @@ dependencies = [
 [[package]]
 name = "ton_block"
 version = "1.9.73"
-source = "git+https://github.com/broxus/ton-labs-block.git#66b3ccb8e6187e6d9f611f6541c0f59d3eb77cbf"
+source = "git+https://github.com/broxus/ton-labs-block.git#f1c3e222ee6a2b2ccf663f4f2df5e1335b95961a"
 dependencies = [
  "anyhow",
  "base64",
@@ -789,7 +789,7 @@ dependencies = [
 [[package]]
 name = "ton_block_json"
 version = "0.7.3"
-source = "git+https://github.com/broxus/ton-labs-block-json.git#f4f6581d2306e99fc44404982a9038bd1e0d8dc1"
+source = "git+https://github.com/broxus/ton-labs-block-json.git#c9de646d81829570bf8de06a169b028a4681855b"
 dependencies = [
  "anyhow",
  "base64",

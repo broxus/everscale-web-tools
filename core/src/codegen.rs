@@ -64,7 +64,7 @@ pub fn generate_rust_code(abi: &str, abi_type: &str) -> Result<String, JsValue> 
             }
         }
         AbiType::Contract => {
-            let abi = Contract::load(abi).handle_error()?;
+            let abi = Contract::load(abi.as_bytes()).handle_error()?;
             generate_rust_code_from_abi(abi)
         }
     }
@@ -682,6 +682,7 @@ fn generate_property(abi_name: Option<String>, param: &ParamType) -> Result<Stru
             });
         }
         ParamType::Address => "ton_block::MsgAddressInt".to_string(),
+        ParamType::AddressStd => "ton_block::MsgAddressInt".to_string(),
         ParamType::Bytes => "Vec<u8>".to_string(),
         ParamType::FixedBytes(_) => "Vec<u8>".to_string(),
         ParamType::String => "String".to_string(),

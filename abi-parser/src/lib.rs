@@ -57,6 +57,8 @@ fn parse_function(rule: Pair<Rule>) -> Result<ton_abi::Function, ParserError> {
             "v2.1" => ton_abi::contract::ABI_VERSION_2_1,
             "v2.2" | "v2" => ton_abi::contract::ABI_VERSION_2_2,
             "v2.3" => ton_abi::contract::ABI_VERSION_2_3,
+            "v2.4" => ton_abi::contract::ABI_VERSION_2_4,
+            "v2.7" => ton_abi::contract::ABI_VERSION_2_7,
             _ => return Err(ParserError::InvalidAbiVersion),
         },
         None => ton_abi::contract::ABI_VERSION_2_2,
@@ -116,6 +118,7 @@ fn parse_ty(rule: Pair<Rule>) -> Result<ton_abi::ParamType, ParserError> {
         }),
         Rule::ty_bool => Ok(ton_abi::ParamType::Bool),
         Rule::ty_cell => Ok(ton_abi::ParamType::Cell),
+        Rule::ty_address_std => Ok(ton_abi::ParamType::AddressStd),
         Rule::ty_address => Ok(ton_abi::ParamType::Address),
         Rule::ty_bytes => Ok(ton_abi::ParamType::Bytes),
         Rule::ty_fixedbytes => parse_template(rule, None, &|len| match len {

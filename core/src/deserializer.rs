@@ -171,7 +171,7 @@ pub fn serialize_transaction(tr: Transaction) -> Result<Value> {
 pub fn serialize_account(account: Account) -> Result<Value> {
     let set = AccountSerializationSet {
         account: account.clone(),
-        prev_account_state: None,
+        prev_code_hash: None,
         boc: Vec::new(),
         boc1: None,
         proof: None,
@@ -249,8 +249,13 @@ fn serialize_account_storage_info(storage_info: &StorageInfo) -> Result<Value> {
         "used": serde_json::json!({
             "cells": storage_info.used.cells(),
             "bits": storage_info.used.bits(),
-            "public_cells": storage_info.used.public_cells(),
         }),
+        "extra": match storage_info.used.extra {
+            ton_block::StorageExtra::None => serde_json::Value::Null,
+            ton_block::StorageExtra::Dict { dict_hash } => serde_json::json!({
+                "dict_hash": dict_hash.to_hex_string(),
+            }),
+        },
         "last_paid": storage_info.last_paid,
         "due_payment": storage_info.due_payment().unwrap_or(&Grams::zero()).to_string(),
     }))

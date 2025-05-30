@@ -129,6 +129,7 @@ fn make_param_type(param_type: ParamType) -> (Cow<'static, str>, Option<JsValue>
             (Cow::Owned(format!("map({key},{value})")), components)
         }
         ParamType::Address => (Cow::Borrowed("address"), None),
+        ParamType::AddressStd => (Cow::Borrowed("address_std"), None),
         ParamType::Bytes => (Cow::Borrowed("bytes"), None),
         ParamType::FixedBytes(len) => (Cow::Owned(format!("fixedbytes{len}")), None),
         ParamType::String => (Cow::Borrowed("string"), None),

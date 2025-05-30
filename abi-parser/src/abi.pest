@@ -8,6 +8,7 @@ ty_varuint = ${ "varuint" ~ nat_const }
 ty_varint = ${ "varint" ~ nat_const }
 ty_bool = @{ "bool" }
 ty_cell = @{ "cell" }
+ty_address_std = @{ "address_std" | "addr_std"}
 ty_address = @{ "address" | "addr"}
 ty_bytes = @{ "bytes" }
 ty_fixedbytes = ${ "fixedbytes" ~ nat_const }
@@ -17,7 +18,7 @@ ty_optional = { "optional" ~ "(" ~ ty ~ ")" }
 ty_ref = { "ref" ~ "(" ~ ty ~ ")" }
 ty_tuple = { "(" ~ ty ~ ("," ~ ty)* ~ ")" }
 
-map_key = _{ ty_address | ty_uint | ty_int | ty_varuint | ty_varint }
+map_key = _{ ty_address_std | ty_address | ty_uint | ty_int | ty_varuint | ty_varint }
 ty_map = { ("mapping" | "map") ~ "(" ~ map_key ~ "," ~ ty ~ ")" }
 
 ty_not_array = _{
@@ -27,6 +28,7 @@ ty_not_array = _{
     ty_varint |
     ty_bool |
     ty_cell |
+    ty_address_std |
     ty_address |
     ty_bytes |
     ty_fixedbytes |
@@ -44,7 +46,7 @@ ty = _{ ty_array | ty_fixedarray | ty_not_array }
 
 function_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 function_params = { "(" ~ (ty ~ ("," ~ ty)* )? ~ ")" }
-function_version = @{ "v2.0" | "v2.1" | "v2.2" | "v2.3" | "v1.0" | "v1" | "v2" }
+function_version = @{ "v2.0" | "v2.1" | "v2.2" | "v2.3" | "v2.4" | "v2.7" | "v1.0" | "v1" | "v2" }
 function_id = @{ "#" ~ ASCII_HEX_DIGIT{8} }
 function = { function_name ~ function_id? ~ function_params ~ function_params ~ function_version? }
 

@@ -123,7 +123,7 @@ export type Structure = {
 };
 
 const NUMBER_FIELD_REGEX = /^(?:(?:var)?u?int\d+|gram|timestamp|expire)$/;
-const TEXT_FIELD_REGEX = /^(?:cell|address|bytes|string|fixedbytes\d+|pubkey)$/;
+const TEXT_FIELD_REGEX = /^(?:cell|address|address_std|bytes|string|fixedbytes\d+|pubkey)$/;
 
 export function makeStructure(
   param: AbiParam,
@@ -149,7 +149,7 @@ export function makeStructure(
       defaultValue: '0'
     };
   } else if (TEXT_FIELD_REGEX.test(checkType)) {
-    const defaultValue = checkType == 'address' ? DEFAULT_ADDRESS : checkType == 'cell' ? EMPTY_CELL : '';
+    const defaultValue = ['address', 'address_std'].includes(checkType) ? DEFAULT_ADDRESS : checkType == 'cell' ? EMPTY_CELL : '';
     return {
       name: param.name,
       type: showType,
