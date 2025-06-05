@@ -63,6 +63,10 @@ export const transactionExplorerLink = (network: number, hash: string) => {
       return `https://testnet.tychoprotocol.com/transactions/${hash}`;
     case -6001:
       return `https://e-tycho-devnet1.broxus.com/transactions/${hash}`;
+    case 7:
+      return `https://hamsterscan.io/transactions/${hash}`;
+    case 100860:
+      return `https://humoscan.com/transactions/${hash}`;
     case 1:
       return `https://venomscan.com/transactions/${hash}`;
     case 42:
@@ -91,6 +95,10 @@ export const accountExplorerLink = (network: number, address: Address | string) 
       return `https://venomscan.com/accounts/${addr}`;
     case -6001:
       return `https://e-tycho-devnet1.broxus.com/accounts/${addr}`;
+    case 7:
+      return `https://hamsterscan.io/accounts/${addr}`;
+    case 100860:
+      return `https://humoscan.com/accounts/${addr}`;
     case 42:
       return `https://everscan.io/accounts/${addr}`;
     case -42:
