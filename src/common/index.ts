@@ -55,14 +55,20 @@ export const rewriteAbiUrl = (address: URL) => {
 
 export const transactionExplorerLink = (network: number, hash: string) => {
   switch (network) {
+    case -239:
+      return `https://tonviewer.com/transaction/${hash}`;
+    case -3:
+      return `https://testnet.tonviewer.com/transaction/${hash}`;
+    case 2000:
+      return `https://testnet.tychoprotocol.com/transactions/${hash}`;
+    case -6001:
+      return `https://e-tycho-devnet1.broxus.com/transactions/${hash}`;
+    case 1:
+      return `https://venomscan.com/transactions/${hash}`;
     case 42:
       return `https://everscan.io/transactions/${hash}`;
     case -42:
       return `https://testnet.everscan.io/transactions/${hash}`;
-    case 1:
-      return `https://venomscan.com/transactions/${hash}`;
-    case 2000:
-      return `https://testnet.tychoprotocol.com/transactions/${hash}`;
     case 7:
       return `https://hamsterscan.io/transactions/${hash}`;
     case 0:
@@ -75,14 +81,20 @@ export const transactionExplorerLink = (network: number, hash: string) => {
 export const accountExplorerLink = (network: number, address: Address | string) => {
   const addr = address.toString();
   switch (network) {
+    case -239:
+      return `https://tonviewer.com/${addr}`;
+    case -3:
+      return `https://testnet.tonviewer.com/${addr}`;
+    case 2000:
+      return `https://testnet.tychoprotocol.com/accounts/${addr}`;
+    case 1:
+      return `https://venomscan.com/accounts/${addr}`;
+    case -6001:
+      return `https://e-tycho-devnet1.broxus.com/accounts/${addr}`;
     case 42:
       return `https://everscan.io/accounts/${addr}`;
     case -42:
       return `https://testnet.everscan.io/accounts/${addr}`;
-    case 1:
-      return `https://venomscan.com/accounts/${addr}`;
-    case 2000:
-      return `https://testnet.tychoprotocol.com/accounts/${addr}`;
     case 7:
       return `https://hamsterscan.io/accounts/${addr}`;
     case 0:
