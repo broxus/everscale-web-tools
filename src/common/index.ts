@@ -73,8 +73,6 @@ export const transactionExplorerLink = (network: number, hash: string) => {
       return `https://everscan.io/transactions/${hash}`;
     case -42:
       return `https://testnet.everscan.io/transactions/${hash}`;
-    case 7:
-      return `https://hamsterscan.io/transactions/${hash}`;
     case 0:
       return `https://127.0.0.1/messages/messageDetails?id=${hash}`;
     default:
@@ -103,8 +101,6 @@ export const accountExplorerLink = (network: number, address: Address | string) 
       return `https://everscan.io/accounts/${addr}`;
     case -42:
       return `https://testnet.everscan.io/accounts/${addr}`;
-    case 7:
-      return `https://hamsterscan.io/accounts/${addr}`;
     case 0:
       return `https://127.0.0.1/accounts/accountDetails?id=${encodeURIComponent(addr)}`;
     default:
