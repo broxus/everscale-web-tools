@@ -12,10 +12,10 @@
   "dependencies": {
     "@broxus/tvm-connect-ui": "^1.0.1",
     "@soerenmartius/vue3-clipboard": "^0.1.2",
-    "@ton/core": "^0.60.1",
+    "@ton/core": "^0.61.0",
     "@ton/crypto": "^3.3.0",
-    "@tychosdk/disasm": "^0.1.6",
-    "bignumber.js": "^9.1.0",
+    "@tychosdk/disasm": "^0.2.0",
+    "bignumber.js": "^9.3.1",
     "everscale-inpage-provider": "^0.4.0",
     "fflate": "^0.8.2",
     "vue": "^3.2.37",
