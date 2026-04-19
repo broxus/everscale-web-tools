@@ -14,7 +14,7 @@
     "@soerenmartius/vue3-clipboard": "^0.1.2",
     "@ton/core": "^0.61.0",
     "@ton/crypto": "^3.3.0",
-    "@tychosdk/disasm": "^0.2.0",
+    "@tychosdk/disasm": "^0.2.3",
     "bignumber.js": "^9.3.1",
     "everscale-inpage-provider": "^0.4.0",
     "fflate": "^0.8.2",
